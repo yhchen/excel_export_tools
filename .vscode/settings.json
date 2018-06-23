@@ -1,0 +1,23 @@
+{
+    "editor.insertSpaces": false,
+    "editor.renderWhitespace": "all",
+    "editor.trimAutoWhitespace": true,
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        ".vscode": true,
+        "package-lock.json": true,
+        "package.json": true,
+        "tsconfig.json": true,
+        "node_modules": true
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/bin": true
+    },
+    "files.trimTrailingWhitespace": true
+}
