@@ -13,7 +13,7 @@ const red = chalk.default.redBright;
 const green = chalk.default.greenBright;
 const brightWhite = chalk.default.whiteBright.bold
 function logger(debugMode: boolean, ...args: any[]) {
-	if (!gCfg.debugMode && debugMode) {
+	if (!gCfg.enableDebugOutput && debugMode) {
 		return;
 	}
 	console.log(...args);
@@ -124,6 +124,9 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		return;
 	}
 	const CSVName = worksheet.B1.w;
+	if (gCfg.ExcludeCsvTableNames.indexOf(CSVName) >= 0) {
+		logger(true, `- Pass CSV [${CSVName}]`);
+	}
 
 	let rowIdx = 2;
 	let csvcontent = '';
@@ -149,7 +152,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		++rowIdx;
 		break;
 	}
-	csvcontent += tmpArry.join(',') + gCfg.LineEnd;
+	csvcontent += tmpArry.join(',') + gCfg.LineBreak;
 	// find type
 	for (; rowIdx <= RowMax; ++rowIdx) {
 		const firstCell = GetCellData(worksheet, ColumnArry[0].sid, rowIdx);
@@ -180,7 +183,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		++rowIdx;
 		break;
 	}
-	csvcontent += `${tmpArry.join(',')}${gCfg.LineEnd}`;
+	csvcontent += `${tmpArry.join(',')}${gCfg.LineBreak}`;
 
 	// handle datas
 	for (; rowIdx <= RowMax; ++rowIdx) {
@@ -195,7 +198,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				firstCol = false;
 			}
 			let value = cell && cell.w ? cell.w : '';
-			if (gCfg.typeCheck) {
+			if (gCfg.enableTypeCheck) {
 				if (!col.checker.CheckValue(cell)) {
 					// col.checker.CheckValue(cell);
 					exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Cell [${yellow(col.sid+(rowIdx+1).toString())}] format not match [${yellow(value)}]!`);
@@ -205,7 +208,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			tmpArry.push(col.checker.GetValue(cell));
 		}
 		if (!firstCol) {
-			csvcontent += tmpArry.join(',').replace(/\n/g, '\\n').replace(/\r/g, '') + gCfg.LineEnd;
+			csvcontent += tmpArry.join(',').replace(/\n/g, '\\n').replace(/\r/g, '') + gCfg.LineBreak;
 		}
 	}
 	fs.writeFileSync(path.join(gCfg.OutputDir, CSVName+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
