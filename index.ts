@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as chalk from 'chalk';
 
 import {CTypeChecker} from "./TypeChecker";
+import { start } from 'repl';
 
 /*************** console color ***************/
 const yellow = chalk.default.yellowBright;
@@ -100,6 +101,7 @@ function GetCellData(worksheet: xlsx.WorkSheet, column: string, row: number): xl
 }
 
 function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.WorkSheet): void{
+	const StartTick = Date.now();
 	let ColumnMax = 'A';
 	let RowMax = 0;
 	let ColumnArry = new Array<{sid:string, id:number, name:string, checker:CTypeChecker}>();
@@ -212,7 +214,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		}
 	}
 	fs.writeFileSync(path.join(gCfg.OutputDir, CSVName+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
-	logger(false, `${green('[SUCCESS]')} Output file [${yellow(path.join(gCfg.OutputDir, CSVName+'.csv'))}].`);
+	logger(false, `${green('[SUCCESS]')} Output file [${yellow(path.join(gCfg.OutputDir, CSVName+'.csv'))}]. Total use tick:${green((Date.now() - StartTick).toString())}`);
 }
 
 function HandleExcelFile(fileName: string): void {
