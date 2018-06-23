@@ -183,9 +183,6 @@ export class CTypeChecker
 				}
 				return `"${value.w.replace(/"/g, `""`)}"`;
 			}
-			if (this._type.type == EType.array) {
-				return `"[]"`;
-			}
 			return '';
 		}
 	}
