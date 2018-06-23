@@ -159,7 +159,6 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		if (firstCell.w[0] != '*') {
 			exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Type Column not found!`);
 		}
-		firstCell.w = firstCell.w.substr(1);
 		tmpArry = [];
 		for (let col of ColumnArry) {
 			let cell = GetCellData(worksheet, col.sid, rowIdx);
@@ -168,8 +167,12 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				return;
 			}
 			try {
-				col.checker = new CTypeChecker(cell.w);
-				tmpArry.push(`"${cell.w.replace(/"/g, `""`)}"`);
+				col.checker = new CTypeChecker(col.id <= 1 ? cell.w.substr(1):cell.w);
+				let v = cell.w.replace(/"/g, `""`);
+				if (v.indexOf(',') >= 0) {
+					v = '"' + v + '"';
+				}
+				tmpArry.push(`${v}`);
 			} catch (ex) {
 				exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Type Column [${yellow(col.name)}] format error [${yellow(cell.w)}]!`, ex);
 			}
@@ -177,7 +180,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		++rowIdx;
 		break;
 	}
-	csvcontent += `*${tmpArry.join(',')}${gCfg.LineEnd}`;
+	csvcontent += `${tmpArry.join(',')}${gCfg.LineEnd}`;
 
 	// handle datas
 	for (; rowIdx <= RowMax; ++rowIdx) {
