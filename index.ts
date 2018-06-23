@@ -231,6 +231,7 @@ function HandleExcelFile(fileName: string): void {
 }
 
 function main() {
+	const StartTimer = Date.now();
 	if (!fs.existsSync(gCfg.OutputDir)) {
 		fs.mkdirSync(gCfg.OutputDir);
 	}
@@ -251,6 +252,7 @@ function main() {
 		}
 	}
 
+	logger(false, `Total Use Tick : [${yellow((Date.now() - StartTimer).toString())}]`);
 	logger(false, yellow("----------------------------------------"));
 	logger(false, yellow("-            DONE WITH ALL             -"));
 	logger(false, yellow("----------------------------------------"));
