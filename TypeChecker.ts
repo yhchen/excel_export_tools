@@ -14,8 +14,6 @@
  * 		|		int64		| min:-9223372036854775808	max:9223372036854775807		|
  * 		|		uint64		| min:0						max:18446744073709551615	|
  * 		|		string		| auto change 'line break' to '\n'						|
- * 		|		vector2		| [float, float]										|
- * 		|		vector3		| [float, float, float]									|
  * 		|		double		| ...													|
  * 		|		float		| ...													|
  * 		-----------------------------------------------------------------------------
@@ -27,11 +25,16 @@
  * 		| {"<name>":<type>}	| start with '{' and end with '}' with json format.		|
  * 		|					| <type> is one of "Base Type" or "Combination Type".	|
  * 		-----------------------------------------------------------------------------
- * 		|	<type>[<N>]		| <type> is one of "Base Type" or "Combination Type".	|
+ * 		| <type>[<N>]		| <type> is one of "Base Type" or "Combination Type".	|
  * 		|					| <N> is empty(variable-length) or number.				|
+ * 		-----------------------------------------------------------------------------
+ * 		| vector2			| float[2]												|
+ * 		-----------------------------------------------------------------------------
+ * 		| vector3			| float[3]												|
  * 		-----------------------------------------------------------------------------
  */
 import * as xlsx from 'xlsx';
+import { isArray, isObject } from 'util';
 
 function NullStr(s: string) {
 	if (typeof s === "string") {
@@ -85,7 +88,7 @@ const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uin
 // number type
 const BaseNumberTypeSet = new Set<string>(['char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ])
 
-enum ETypeRelation {
+enum ETypeNameMap {
 	char	=	"char",
 	uchar	=	"uchar",
 	short	=	"short",
@@ -102,7 +105,6 @@ enum ETypeRelation {
 };
 
 enum EType {
-	undefined,
 	object,
 	array,
 	base,
@@ -132,9 +134,10 @@ export class CTypeChecker
 {
 	public constructor(typeString: string) {
 		let s = typeString.replace(/ /g, '').replace(/\t/g, '').replace(/\n/g, '').replace(/\r/g, '');
+		s = s.replace(/vector2/g, "float[2]").replace(/vector3/g, "float[3]");
 		this.__s = s;
 		if (NullStr(s)) {
-			this._type = {type:EType.base, typename:ETypeRelation.string};
+			this._type = {type:EType.base, typename:ETypeNameMap.string};
 			return;
 		}
 		let tt = this.initType({s, i:0});
@@ -150,14 +153,24 @@ export class CTypeChecker
 			return true;
 		}
 		if (this._isnumber) {
-			return typeof value.v === 'number';
-			// FIXME : check number range
+			if (typeof value.v !== 'number') return false;
+			return this.CheckNumberRange(value.v, this._type);
 		} else {
-			// FIXME : type check
-			return true;
+			if (this._type.typename == ETypeNameMap.string) {
+				return true;
+			}
+			let tmpObj:any = undefined;
+			try {
+				tmpObj = JSON.parse(value.w);
+			} catch (ex) {
+				console.log(false, `Check Object Type JSON Parse ERROR. ${ex}`);
+				return false;
+			}
+			return this.CheckJsonType(tmpObj, this._type);
 		}
 		return true;
 	}
+
 	public GetValue(value: xlsx.CellObject|undefined): string {
 		if (this._isnumber) {
 			if (value == undefined) return '0';
@@ -172,6 +185,43 @@ export class CTypeChecker
 			}
 			return '';
 		}
+	}
+
+	private CheckJsonType(tmpObj:any, type: CType|undefined) : boolean {
+		if (tmpObj == undefined || type == undefined)	return true;
+		switch (type.type) {
+		case EType.array:
+			if (!isArray(tmpObj)) return false;
+			if (type.num !== undefined && type.num != tmpObj.length) return false;
+			for (let i = 0; i < tmpObj.length; ++i) {
+				if (type.next == undefined || !this.CheckJsonType(tmpObj[i], type.next)) {
+					return false;
+				}
+			}
+			break;
+		case EType.base:
+			if (this._isnumber) {
+				let v = typeof tmpObj === 'number' ? tmpObj : parseInt(tmpObj);
+				return this.CheckNumberRange(v, type);
+			}
+			break;
+		case EType.object:
+			if (!isObject(tmpObj)) return false;
+			if (!type.obj) return false;
+			for (let key in tmpObj) {
+				if (type.obj[key] == undefined) return false;
+				if (!this.CheckJsonType(tmpObj[key], type.obj[key])) {
+					return false;
+				}
+			}
+			break;
+		}
+		return true;
+	}
+
+	private CheckNumberRange(n: number, t: CType): boolean {
+		// FIXME : check number
+		return true;
 	}
 
 	private initType(p:{s:string, i:number}): CType|undefined {
