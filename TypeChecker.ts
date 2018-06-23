@@ -178,7 +178,7 @@ export class CTypeChecker
 			return value.w ? value.w : '0';
 		} else {
 			if (value && value.w) {
-				if (value.w.indexOf(',') < 0) {
+				if (value.w.indexOf(',') < 0 && value.w.indexOf('"') < 0) {
 					return `${value.w.replace(/"/g, `""`)}`;
 				}
 				return `"${value.w.replace(/"/g, `""`)}"`;
