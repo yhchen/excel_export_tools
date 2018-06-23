@@ -1,12 +1,13 @@
 {
 	"IncludeFilesAndPath": [
-		"./excel"
+		"./test/excel"
 	],
 	"ExcludeFileNames": [
 		"C充值.xlsx",
 		"M姓名库.xlsx"
 	],
-	"OutputDir": "./csv/",
+	"OutputDir": "./test/csv/",
+	"LineEnd": "\n",
 	"typeCheck": true,
 	"debugMode": true
 }

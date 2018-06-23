@@ -11,7 +11,7 @@ import {CTypeChecker} from "./TypeChecker";
 const yellow = chalk.default.yellowBright;
 const red = chalk.default.redBright;
 const green = chalk.default.greenBright;
-function brightWhite(txt:string):void { chalk.default.whiteBright(chalk.default.bold(txt)); }
+const brightWhite = chalk.default.whiteBright.bold
 function logger(debugMode: boolean, ...args: any[]) {
 	if (!gCfg.debugMode && debugMode) {
 		return;
@@ -149,7 +149,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		++rowIdx;
 		break;
 	}
-	csvcontent += tmpArry.join(',') + '\n';
+	csvcontent += tmpArry.join(',') + gCfg.LineEnd;
 	// find type
 	for (; rowIdx <= RowMax; ++rowIdx) {
 		const firstCell = GetCellData(worksheet, ColumnArry[0].sid, rowIdx);
@@ -169,7 +169,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			}
 			try {
 				col.checker = new CTypeChecker(cell.w);
-				tmpArry.push(cell.w);
+				tmpArry.push(`"${cell.w.replace(/"/g, `""`)}"`);
 			} catch (ex) {
 				exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Type Column [${yellow(col.name)}] format error [${yellow(cell.w)}]!`, ex);
 			}
@@ -177,7 +177,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		++rowIdx;
 		break;
 	}
-	csvcontent += tmpArry.join(',') + '\n';
+	csvcontent += `*${tmpArry.join(',')}${gCfg.LineEnd}`;
 
 	// handle datas
 	for (; rowIdx <= RowMax; ++rowIdx) {
@@ -185,27 +185,26 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		tmpArry = [];
 		for (let col of ColumnArry) {
 			let cell = GetCellData(worksheet, col.sid, rowIdx);
-			if (cell == undefined || cell.w == undefined || NullStr(cell.w)) {
-				break;
-			}
 			if (firstCol) {
-				if (cell.w[0] == '#') {
+				if (cell == undefined || cell.w == undefined || NullStr(cell.w) || cell.w[0] == '#') {
 					break;
 				}
 				firstCol = false;
 			}
-			if (!col.checker.CheckValue(cell.w)) {
-				exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Cell [${yellow(col.name+(rowIdx+1).toString())}] format not match [${yellow(cell.w)}]!`);
+			let value = cell && cell.w ? cell.w : '';
+			if (!col.checker.CheckValue(cell)) {
+				col.checker.CheckValue(cell);
+				exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Cell [${yellow(col.sid+(rowIdx+1).toString())}] format not match [${yellow(value)}]!`);
 				return;
 			}
-			tmpArry.push(col.checker.GetValue(cell.w));
+			tmpArry.push(col.checker.GetValue(cell));
 		}
 		if (!firstCol) {
-			csvcontent += tmpArry.join(',') + '\n';
+			csvcontent += tmpArry.join(',').replace(/\n/g, '\\n').replace(/\r/g, '') + gCfg.LineEnd;
 		}
 	}
-	trace(path.join(gCfg.OutputDir, CSVName+'.csv'));
 	fs.writeFileSync(path.join(gCfg.OutputDir, CSVName+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
+	logger(false, `${green('[SUCCESS]')} Output file [${yellow(path.join(gCfg.OutputDir, CSVName+'.csv'))}].`);
 }
 
 function HandleExcelFile(fileName: string): void {
@@ -225,7 +224,7 @@ function HandleExcelFile(fileName: string): void {
 		return;
 	}
 	for (let sheetName of excel.SheetNames) {
-		logger(true, `handle excel [${yellow(fileName)}] sheet [${yellow(sheetName)}]`);
+		logger(true, `handle excel [${brightWhite(fileName)}] sheet [${yellow(sheetName)}]`);
 		const worksheet = excel.Sheets[sheetName];
 		HandleWorkSheet(fileName, sheetName, worksheet);
 	}
@@ -239,14 +238,22 @@ function main() {
 		if (!path.isAbsolute(fileOrPath)) {
 			fileOrPath = path.join(gRootDir, fileOrPath);
 		}
+		if (!fs.existsSync(fileOrPath)) {
+			logger(false, `file or directory [${yellow(fileOrPath)}] not found!`);
+			continue;
+		}
 		if (fs.statSync(fileOrPath).isDirectory()) {
 			HandleDir(fileOrPath);
 		} else if (fs.statSync(fileOrPath).isFile()) {
 			HandleExcelFile(fileOrPath);
 		} else {
-
+			exception(`UnHandle file or directory type : [${yellow(fileOrPath)}]`);
 		}
 	}
+
+	logger(false, yellow("----------------------------------------"));
+	logger(false, yellow("-            DONE WITH ALL             -"));
+	logger(false, yellow("----------------------------------------"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

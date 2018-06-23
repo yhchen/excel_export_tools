@@ -1,5 +1,3 @@
-import { types } from "util";
-
 /**
  * Support Format Check:
  *
@@ -33,6 +31,7 @@ import { types } from "util";
  * 		|					| <N> is empty(variable-length) or number.				|
  * 		-----------------------------------------------------------------------------
  */
+import * as xlsx from 'xlsx';
 
 function NullStr(s: string) {
 	if (typeof s === "string") {
@@ -82,7 +81,9 @@ function FindNum(s: string, idx?: number): {start:number, end:number, len:number
 }
 
 
-const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uint','int64','uint64','string','double','float','vector2','vector3' ]);
+const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uint','int64','uint64','string','double','float','vector2','vector3', ]);
+// number type
+const BaseNumberTypeSet = new Set<string>(['char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ])
 
 enum ETypeRelation {
 	char	=	"char",
@@ -130,89 +131,115 @@ export interface CType
 export class CTypeChecker
 {
 	public constructor(typeString: string) {
-		this.__s = typeString.replace(/ /g, '').replace(/\t/g, '').replace(/\n/g, '').replace(/\r/g, '');
-		if (NullStr(this.__s)) {
+		let s = typeString.replace(/ /g, '').replace(/\t/g, '').replace(/\n/g, '').replace(/\r/g, '');
+		this.__s = s;
+		if (NullStr(s)) {
 			this._type = {type:EType.base, typename:ETypeRelation.string};
 			return;
 		}
-		let tt = this.initType();
+		let tt = this.initType({s, i:0});
 		if (tt == undefined) throw `gen type check error: no data`;
 		this._type = tt;
+		if (tt.typename && BaseNumberTypeSet.has(tt.typename) && tt.next == undefined) {
+			this._isnumber = true;
+		}
 	}
 
-	public CheckValue(value: string): boolean {
+	public CheckValue(value: xlsx.CellObject|undefined): boolean {
+		if (value == undefined || value.w == undefined || NullStr(value.w)) {
+			return true;
+		}
+		if (this._isnumber) {
+			return typeof value.v === 'number';
+			// FIXME : check number range
+		} else {
+			// FIXME : type check
+			return true;
+		}
 		return true;
 	}
-	public GetValue(value: string|undefined): string {
-		return value ? value : '';
+	public GetValue(value: xlsx.CellObject|undefined): string {
+		if (this._isnumber) {
+			if (value == undefined) return '0';
+			if (typeof value.v === 'number') return value.v.toString();
+			return value.w ? value.w : '0';
+		} else {
+			if (value && value.w) {
+				return `"${value.w.replace(/"/g, `""`)}"`;
+			}
+			if (this._type.type == EType.array) {
+				return `"[]"`;
+			}
+			return '';
+		}
 	}
 
-	private initType(): CType|undefined {
+	private initType(p:{s:string, i:number}): CType|undefined {
 		let thisNode:CType|undefined = undefined;
 		// skip write space
-		if (this.__idx >= this.__s.length) undefined;
+		if (p.i >= p.s.length) undefined;
 		let result:CType;
-		if (this.__s[this.__idx] == '{') {
+		if (p.s[p.i] == '{') {
 			thisNode = {type:EType.object};
-			++this.__idx;
+			++p.i;
 			while (true)
 			{
 				// find name:
-				const namescope = FindWord(this.__s, this.__idx);
+				const namescope = FindWord(p.s, p.i);
 				if (!namescope) throw `gen type check error: object name not found!`;
-				const name = this.__s.substr(namescope.start, namescope.len);
-				this.__idx = namescope.end + 1;
-				if (this.__s[this.__idx++] != ':') throw `gen type check error: object name key not join with ':'`;
-				let tt = this.initType();
+				const name = p.s.substr(namescope.start, namescope.len);
+				p.i = namescope.end + 1;
+				if (p.s[p.i++] != ':') throw `gen type check error: object name key not join with ':'`;
+				let tt = this.initType(p);
 				if (!tt) throw `gen type check error: object name ${name} not found value!`;
-				if (this.__idx >= this.__s.length)	throw `gen type check error: '}' not found!`;
+				if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
 				if (!thisNode.obj) thisNode.obj = {};
 				thisNode.obj[name] = tt;
-				if (this.__s[this.__idx] == ',') {
-					++this.__idx;
-					if (this.__idx >= this.__s.length)	throw `gen type check error: '}' not found!`;
+				if (p.s[p.i] == ',') {
+					++p.i;
+					if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
 				}
-				if (this.__s[this.__idx] == '}') {
-					++this.__idx;
+				if (p.s[p.i] == '}') {
+					++p.i;
 					break;
 				}
-				if (this.__idx >= this.__s.length)	throw `gen type check error: '}' not found!`;
+				if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
 			}
-		} else if (this.__s[this.__idx] == '[') {
-			++this.__idx;
+		} else if (p.s[p.i] == '[') {
+			++p.i;
 			let num:number|undefined = undefined;
-			if (this.__idx >= this.__s.length)	throw `gen type check error: '}' not found!`;
-			if (this.__s[this.__idx] != ']') {
-				let numscope = FindNum(this.__s, this.__idx);
+			if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
+			if (p.s[p.i] != ']') {
+				let numscope = FindNum(p.s, p.i);
 				if (numscope == undefined) throw `gen type check error: array [<NUM>] format error!`;
-				this.__idx = numscope.end+1;
-				num = parseInt(this.__s.substr(numscope.start, numscope.len));
+				p.i = numscope.end+1;
+				num = parseInt(p.s.substr(numscope.start, numscope.len));
 			}
-			if (this.__idx >= this.__s.length)	throw `gen type check error: ']' not found!`;
-			if (this.__s[this.__idx] != ']') {
+			if (p.i >= p.s.length)	throw `gen type check error: ']' not found!`;
+			if (p.s[p.i] != ']') {
 				throw `gen type check error: array [<NUM>] ']' not found!`;
 			}
-			++this.__idx;
+			++p.i;
 			let arrNode:CType = {type:EType.array, num};
-			if (this.__idx < this.__s.length && this.__s[this.__idx] == '[') {
-				let nextArrNode = this.initType();
+			if (p.i < p.s.length && p.s[p.i] == '[') {
+				let nextArrNode = this.initType(p);
 				if (!nextArrNode) throw `gen type check error: multi array error!`;
 				arrNode.next = nextArrNode;
 			}
 			return arrNode;
 		} else {
-			const typescope = FindWord(this.__s, this.__idx);
+			const typescope = FindWord(p.s, p.i);
 			if (!typescope) {
 				throw `gen type check error: base type not found!`;
 			}
-			const typename = this.__s.substr(typescope.start, typescope.len);
+			const typename = p.s.substr(typescope.start, typescope.len);
 			if (!BaseTypeSet.has(typename)) throw `gen type check error: base type = ${this._type.typename} not exist!`;
 			thisNode = {type:EType.base, typename:typename};
-			this.__idx = typescope.end+1;
+			p.i = typescope.end+1;
 		}
 
-		if (this.__s[this.__idx] == '[') {
-			let tt = this.initType();
+		if (p.s[p.i] == '[') {
+			let tt = this.initType(p);
 			if (tt == undefined) throw `gen type check error: [] type error`;
 			const typeNode = thisNode;
 			thisNode = tt;
@@ -224,19 +251,22 @@ export class CTypeChecker
 		return thisNode;
 	}
 
+	private _isnumber = false;
 	private _type:CType;
-	private __idx = 0;
 	private __s: string;
 }
 
-// console.log(new CTypeChecker('int'));
-// console.log(new CTypeChecker('string'));
-// console.log(new CTypeChecker('int[]'));
-// console.log(new CTypeChecker('int[2]'));
-// console.log(new CTypeChecker('int[][2]'));
-// console.log(new CTypeChecker('int[][]'));
-// console.log(new CTypeChecker('{t:string}'));
-// console.log(new CTypeChecker('{t:string, t1:string}'));
-// console.log(new CTypeChecker('{t:string, t1:string}[]'));
-// console.log(new CTypeChecker('{t:string, t1:{ut1:string}}[]'));
-// console.log(new CTypeChecker('{t:string, t1:{ut1:string}[]}[]'));
+export function TestTypeChecker() {
+	console.log(new CTypeChecker('int'));
+	console.log(new CTypeChecker('string'));
+	console.log(new CTypeChecker('int[]'));
+	console.log(new CTypeChecker('int[2]'));
+	console.log(new CTypeChecker('int[][2]'));
+	console.log(new CTypeChecker('int[][]'));
+	console.log(new CTypeChecker('{t:string}'));
+	console.log(new CTypeChecker('{t:string, t1:string}'));
+	console.log(new CTypeChecker('{t:string, t1:string}[]'));
+	console.log(new CTypeChecker('{t:string, t1:{ut1:string}}[]'));
+	console.log(new CTypeChecker('{t:string, t1:{ut1:string}[]}[]'));
+}
+
