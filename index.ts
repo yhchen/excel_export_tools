@@ -192,10 +192,12 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				firstCol = false;
 			}
 			let value = cell && cell.w ? cell.w : '';
-			if (!col.checker.CheckValue(cell)) {
-				// col.checker.CheckValue(cell);
-				exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Cell [${yellow(col.sid+(rowIdx+1).toString())}] format not match [${yellow(value)}]!`);
-				return;
+			if (gCfg.typeCheck) {
+				if (!col.checker.CheckValue(cell)) {
+					// col.checker.CheckValue(cell);
+					exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Cell [${yellow(col.sid+(rowIdx+1).toString())}] format not match [${yellow(value)}]!`);
+					return;
+				}
 			}
 			tmpArry.push(col.checker.GetValue(cell));
 		}
