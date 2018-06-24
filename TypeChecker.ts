@@ -34,13 +34,17 @@
  * 		-----------------------------------------------------------------------------
  */
 import * as xlsx from 'xlsx';
-import { isArray, isObject } from 'util';
+import { isArray, isObject, isNumber } from 'util';
 
 function NullStr(s: string) {
 	if (typeof s === "string") {
 		return s.trim().length <= 0;
 	}
 	return true;
+}
+
+function VaildNumber(s: string): boolean {
+	return (+s).toString() === s;
 }
 
 const WORDSCHAR = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_';
@@ -141,6 +145,7 @@ const RangeMap = {
 export interface CType
 {
 	type: EType;
+	is_number: boolean;
 	typename?: string;
 	num?: number;
 	next?: CType;
@@ -154,22 +159,19 @@ export class CTypeChecker
 		s = s.replace(/vector2/g, "float[2]").replace(/vector3/g, "float[3]");
 		this.__s = s;
 		if (NullStr(s)) {
-			this._type = {type:EType.base, typename:ETypeNameMap.string};
+			this._type = {type:EType.base, typename:ETypeNameMap.string, is_number:false};
 			return;
 		}
 		let tt = this.initType({s, i:0});
 		if (tt == undefined) throw `gen type check error: no data`;
 		this._type = tt;
-		if (tt.typename && BaseNumberTypeSet.has(tt.typename) && tt.next == undefined) {
-			this._isnumber = true;
-		}
 	}
 
 	public CheckValue(value: xlsx.CellObject|undefined): boolean {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) {
 			return true;
 		}
-		if (this._isnumber) {
+		if (this._type.is_number) {
 			if (typeof value.v !== 'number') return false;
 			return CheckNumberInRange(value.v, this._type);
 		} else {
@@ -189,7 +191,7 @@ export class CTypeChecker
 	}
 
 	public GetValue(value: xlsx.CellObject|undefined): string {
-		if (this._isnumber) {
+		if (this._type.is_number) {
 			if (value == undefined) return '0';
 			if (typeof value.v === 'number') return value.v.toString();
 			return value.w ? value.w : '0';
@@ -217,10 +219,16 @@ export class CTypeChecker
 			}
 			break;
 		case EType.base:
-			if (this._isnumber) {
-				let v = typeof tmpObj === 'number' ? tmpObj : parseInt(tmpObj);
-				return CheckNumberInRange(v, type);
+			if (type.is_number) {
+				if (typeof tmpObj === 'number') {
+					return CheckNumberInRange(tmpObj, type);
+				}
+				else if (typeof tmpObj === 'string' && VaildNumber(tmpObj)) {
+					return CheckNumberInRange(+tmpObj, type);
+				}
+				return false;
 			}
+			return typeof tmpObj === 'string';
 			break;
 		case EType.object:
 			if (!isObject(tmpObj)) return false;
@@ -242,7 +250,7 @@ export class CTypeChecker
 		if (p.i >= p.s.length) undefined;
 		let result:CType;
 		if (p.s[p.i] == '{') {
-			thisNode = {type:EType.object};
+			thisNode = {type:EType.object, is_number:false};
 			++p.i;
 			while (true)
 			{
@@ -282,7 +290,7 @@ export class CTypeChecker
 				throw `gen type check error: array [<NUM>] ']' not found!`;
 			}
 			++p.i;
-			let arrNode:CType = {type:EType.array, num};
+			let arrNode:CType = {type:EType.array, num, is_number:false};
 			if (p.i < p.s.length && p.s[p.i] == '[') {
 				let nextArrNode = this.initType(p);
 				if (!nextArrNode) throw `gen type check error: multi array error!`;
@@ -296,7 +304,7 @@ export class CTypeChecker
 			}
 			const typename = p.s.substr(typescope.start, typescope.len);
 			if (!BaseTypeSet.has(typename)) throw `gen type check error: base type = ${this._type.typename} not exist!`;
-			thisNode = {type:EType.base, typename:typename};
+			thisNode = {type:EType.base, typename:typename, is_number:BaseNumberTypeSet.has(typename)};
 			p.i = typescope.end+1;
 		}
 
@@ -313,7 +321,6 @@ export class CTypeChecker
 		return thisNode;
 	}
 
-	private _isnumber = false;
 	private _type:CType;
 	private __s: string;
 }
