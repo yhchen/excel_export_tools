@@ -121,11 +121,11 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		RowMax = parseInt(SPREF[1].toUpperCase().replace(/([A-Z]*)/g, ''));
 	}
 	// find csv name
-	if (worksheet.B1 == undefined || NullStr(worksheet.B1.w)) {
+	if (worksheet[gCfg.CSVNameCellID] == undefined || NullStr(worksheet[gCfg.CSVNameCellID].w)) {
 		logger(false, `excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV name not defined. Ignore it!`);
 		return;
 	}
-	const CSVName = worksheet.B1.w;
+	const CSVName = worksheet[gCfg.CSVNameCellID].w;
 	if (gCfg.ExcludeCsvTableNames.indexOf(CSVName) >= 0) {
 		logger(true, `- Pass CSV [${CSVName}]`);
 	}
@@ -217,7 +217,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 	logger(false, `${green('[SUCCESS]')} Output file [${yellow(path.join(gCfg.OutputDir, CSVName+'.csv'))}]. Total use tick:${green((Date.now() - StartTick).toString())}`);
 }
 
-function HandleExcelFile(fileName: string): void {
+async function HandleExcelFile(fileName: string) {
 	const extname = path.extname(fileName);
 	if (extname != '.xls' && extname != '.xlsx') {
 		return;

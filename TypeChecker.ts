@@ -83,11 +83,28 @@ function FindNum(s: string, idx?: number): {start:number, end:number, len:number
 	return (end>=start)&&!first?{start,end,len:end-start+1}:undefined;
 }
 
-
+// all base type
 const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uint','int64','uint64','string','double','float','vector2','vector3', ]);
 // number type
 const BaseNumberTypeSet = new Set<string>(['char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ])
+// number type range
+const NumberRangeMap = new Map<string, {min:number, max:number}>([
+		['char',	{ min:-127,			max:127 }],
+		['uchar',	{ min:0,			max:255 }],
+		['short',	{ min:-32768,		max:32767 }],
+		['ushort',	{ min:0,			max:65535 }],
+		['int',		{ min:-2147483648,	max:2147483647 }],
+		['uint',	{ min:0,			max:4294967295 }],
+	]);
 
+function CheckNumberInRange(n: number, type: CType): boolean {
+	if (type.typename == undefined) return true;
+	const range = NumberRangeMap.get(type.typename);
+	if (range == undefined) return true;
+	return n >= range.min && n <= range.max;
+}
+
+// type name enum
 enum ETypeNameMap {
 	char	=	"char",
 	uchar	=	"uchar",
@@ -154,7 +171,7 @@ export class CTypeChecker
 		}
 		if (this._isnumber) {
 			if (typeof value.v !== 'number') return false;
-			return this.CheckNumberRange(value.v, this._type);
+			return CheckNumberInRange(value.v, this._type);
 		} else {
 			if (this._type.typename == ETypeNameMap.string) {
 				return true;
@@ -202,7 +219,7 @@ export class CTypeChecker
 		case EType.base:
 			if (this._isnumber) {
 				let v = typeof tmpObj === 'number' ? tmpObj : parseInt(tmpObj);
-				return this.CheckNumberRange(v, type);
+				return CheckNumberInRange(v, type);
 			}
 			break;
 		case EType.object:
@@ -216,11 +233,6 @@ export class CTypeChecker
 			}
 			break;
 		}
-		return true;
-	}
-
-	private CheckNumberRange(n: number, t: CType): boolean {
-		// FIXME : check number
 		return true;
 	}
 
@@ -319,4 +331,3 @@ export function TestTypeChecker() {
 	console.log(new CTypeChecker('{t:string, t1:{ut1:string}}[]'));
 	console.log(new CTypeChecker('{t:string, t1:{ut1:string}[]}[]'));
 }
-

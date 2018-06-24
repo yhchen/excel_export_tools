@@ -10,6 +10,7 @@
 		"AchieveLevel"
 	],
 	"OutputDir": "./test/csv/",
+	"CSVNameCellID": "B1",
 	"LineBreak": "\n",
 	"enableTypeCheck": true,
 	"enableDebugOutput": true
