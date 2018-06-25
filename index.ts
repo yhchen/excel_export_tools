@@ -204,7 +204,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			if (gCfg.enableTypeCheck) {
 				if (!col.checker.CheckValue(cell)) {
 					col.checker.CheckValue(cell);
-					exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell "${yellow_ul(col.sid+(rowIdx+1).toString())}" format not match "${yellow_ul(value)}"!`);
+					exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell "${yellow_ul(col.sid+(rowIdx).toString())}" format not match "${yellow_ul(value)}" with ${yellow_ul(col.checker.s)}!`);
 					return;
 				}
 			}
@@ -224,6 +224,10 @@ async function HandleExcelFile(fileName: string) {
 		return;
 	}
 	if (gCfg.ExcludeFileNames.indexOf(path.basename(fileName)) >= 0) {
+		logger(true, `- Pass File "${fileName}"`);
+		return;
+	}
+	if (path.basename(fileName).indexOf(`~$`) == 0) {
 		logger(true, `- Pass File "${fileName}"`);
 		return;
 	}
