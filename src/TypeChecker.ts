@@ -201,7 +201,12 @@ export class CTypeChecker
 	public ParseCellStr(value: xlsx.CellObject|undefined): string {
 		if (this._type.is_number) {
 			if (value == undefined) return '';
-			if (typeof value.v === 'number') return value.v.toString();
+			if (typeof value.v === 'number') {
+				if (value.v < 1) {
+					return value.v.toString().replace(/0./g, '.');
+				}
+				return value.v.toString();
+			}
 			return value.w ? value.w : '';
 		} else {
 			if (value && value.w) {
