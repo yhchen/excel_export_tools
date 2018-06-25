@@ -36,7 +36,23 @@ function NullStr(s: string) {
 /************ console color end*************/
 
 const gRootDir = process.cwd();
-let gExcelFileList = new Array<string>();
+
+function ParseCSVLine(arry: Array<string>): string {
+	for (let i = 0; i < arry.length; ++i) {
+		let value = arry[i];
+		if (value == null) {
+			value = '';
+		} else {
+			if (value.indexOf(',') < 0 && value.indexOf('"') < 0) {
+				value = value.replace(/"/g, `""`);
+			} else {
+				value = `"${value.replace(/"/g, `""`)}"`;
+			}
+		}
+		arry[i] = value;
+	}
+	return arry.join(',').replace(/\n/g, '\\n').replace(/\r/g, '') + gCfg.LineBreak;
+}
 
 function HandleDir(dirName: string): void {
 	var pa = fs.readdirSync(dirName);
@@ -149,7 +165,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 					const cell = GetCellData(worksheet, columnIdx.curr26, rowIdx);
 					tmpArry.push((cell && cell.w)?cell.w:'');
 				}while(columnIdx.next);
-				csvcontent += tmpArry.join(',') + gCfg.LineBreak;
+				csvcontent += ParseCSVLine(tmpArry);
 			}
 			continue;
 		}
@@ -167,7 +183,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		++rowIdx;
 		break;
 	}
-	csvcontent += tmpArry.join(',') + gCfg.LineBreak;
+	csvcontent += ParseCSVLine(tmpArry);
 	// find type
 	for (; rowIdx <= RowMax; ++rowIdx) {
 		const firstCell = GetCellData(worksheet, ColumnArry[0].sid, rowIdx);
@@ -176,13 +192,12 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		}
 		if (firstCell.w[0] == '#') {
 			if (gCfg.EnableExportCommentRows) {
-				columnIdx.seekToBegin();
 				tmpArry = [];
-				do {
-					const cell = GetCellData(worksheet, columnIdx.curr26, rowIdx);
+				for (let col of ColumnArry) {
+					const cell = GetCellData(worksheet, col.sid, rowIdx);
 					tmpArry.push((cell && cell.w)?cell.w:'');
-				}while(columnIdx.next);
-				csvcontent += tmpArry.join(',') + gCfg.LineBreak;
+				}
+				csvcontent += ParseCSVLine(tmpArry);
 			}
 			continue;
 		}
@@ -193,13 +208,13 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		tmpArry = [];
 		for (const col of ColumnArry) {
 			// continue...
+			const cell = GetCellData(worksheet, col.sid, rowIdx);
 			if (col.checker != undefined) {
 				if (gCfg.EnableExportCommentColumns) {
-					tmpArry.push('');
+					tmpArry.push((cell && cell.w)?cell.w:'');
 				}
 				continue;
 			}
-			const cell = GetCellData(worksheet, col.sid, rowIdx);
 			if (cell == undefined || cell.w == undefined) {
 				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column "${yellow_ul(col.name)}" not found!`);
 				return;
@@ -220,7 +235,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		++rowIdx;
 		break;
 	}
-	csvcontent += `${tmpArry.join(',')}${gCfg.LineBreak}`;
+	csvcontent += ParseCSVLine(tmpArry);
 
 	// handle datas
 	for (; rowIdx <= RowMax; ++rowIdx) {
@@ -234,13 +249,12 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				}
 				else if (cell.w[0] == '#') {
 					if (gCfg.EnableExportCommentRows) {
-						columnIdx.seekToBegin();
 						tmpArry = [];
-						do {
-							const cell = GetCellData(worksheet, columnIdx.curr26, rowIdx);
+						for (let col of ColumnArry) {
+							const cell = GetCellData(worksheet, col.sid, rowIdx);
 							tmpArry.push((cell && cell.w)?cell.w:'');
-						}while(columnIdx.next);
-						csvcontent += tmpArry.join(',') + gCfg.LineBreak;
+						}
+						csvcontent += ParseCSVLine(tmpArry);
 					}
 					break;
 				}
@@ -254,10 +268,10 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 					return;
 				}
 			}
-			tmpArry.push(col.checker.GetCsvData(cell));
+			tmpArry.push(col.checker.ParseCellStr(cell));
 		}
 		if (!firstCol) {
-			csvcontent += tmpArry.join(',').replace(/\n/g, '\\n').replace(/\r/g, '') + gCfg.LineBreak;
+			csvcontent += ParseCSVLine(tmpArry);
 		}
 	}
 	fs.writeFileSync(path.join(gCfg.Export.OutputDir, CSVName+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});

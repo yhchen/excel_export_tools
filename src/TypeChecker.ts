@@ -198,17 +198,14 @@ export class CTypeChecker
 		return true;
 	}
 
-	public GetCsvData(value: xlsx.CellObject|undefined): string {
+	public ParseCellStr(value: xlsx.CellObject|undefined): string {
 		if (this._type.is_number) {
 			if (value == undefined) return '';
 			if (typeof value.v === 'number') return value.v.toString();
 			return value.w ? value.w : '';
 		} else {
 			if (value && value.w) {
-				if (value.w.indexOf(',') < 0 && value.w.indexOf('"') < 0) {
-					return `${value.w.replace(/"/g, `""`)}`;
-				}
-				return `"${value.w.replace(/"/g, `""`)}"`;
+				return value.w;
 			}
 			return '';
 		}
