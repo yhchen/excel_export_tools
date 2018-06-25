@@ -10,10 +10,12 @@
   "license": "ISC",
   "dependencies": {
     "chalk": "^2.4.1",
+    "dateformat": "^3.0.3",
     "xlsx": "^0.13.0"
   },
   "devDependencies": {
     "@types/chalk": "^2.2.0",
+    "@types/dateformat": "^1.0.1",
     "@types/node": "^10.3.4",
     "@types/xlsx": "0.0.36",
     "typescript": "^2.9.2"

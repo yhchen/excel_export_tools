@@ -19,9 +19,10 @@
  * 		|		string		| auto change 'line break' to '\n'						|
  * 		|		double		| ...													|
  * 		|		float		| ...													|
- * 		|		date		| YYYY/MM/DD HH:MM:SS									|
- * 		|		tinydate	| YYYY/MM/DD											|
+ * 		|		date		| yyyy/mm/dd HH:MM:ss									|
+ * 		|		tinydate	| yyyy/mm/dd											|
  * 		|		timestamp	| Linux time stamp										|
+ * 		|		utctime		| UTC time stamp										|
  * 		-----------------------------------------------------------------------------
  *
  *
@@ -43,6 +44,7 @@
  */
 import * as xlsx from 'xlsx';
 import { isArray, isObject, isNumber } from 'util';
+import * as dateformat from 'dateformat';
 
 function NullStr(s: string) {
 	if (typeof s === "string") {
@@ -96,9 +98,16 @@ function FindNum(s: string, idx?: number): {start:number, end:number, len:number
 }
 
 // all base type
-const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uint','int64','uint64','string','double','float','vector2','vector3', 'json', 'date','tinydate','timestamp', ]);
+const BaseTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'string', 'double', 'float',
+									  'vector2', 'vector3', 'json', 'date', 'tinydate', 'timestamp', 'utctime', ]);
 // number type
-const BaseNumberTypeSet = new Set<string>(['char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ])
+const BaseNumberTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ]);
+// date type
+const BaseDateTypeSet = new Set<string>([ 'date', 'tinydate', 'timestamp', 'utctime', ]);
+let DateFmt: string = 'yyyy/mm/dd HH:MM:ss';
+console.log(`[TypeCheck] : Default Date format is "${DateFmt}"`)
+let TinyDateFMT: string = 'yy/mm/dd';
+console.log(`[TypeCheck] : Default Tiny Date format is "${TinyDateFMT}"`)
 // number type range
 const NumberRangeMap = new Map<string, {min:number, max:number}>([
 		['char',	{ min:-127,			max:127 }],
@@ -117,21 +126,25 @@ function CheckNumberInRange(n: number, type: CType): boolean {
 }
 
 // type name enum
-export enum ETypeNameMap {
-	char	=	'char',
-	uchar	=	'uchar',
-	short	=	'short',
-	ushort	=	'ushort',
-	int		=	'int',
-	uint	=	'uint',
-	int64	=	'int64',
-	uint64	=	'uint64',
-	string	=	'string',
-	double	=	'double',
-	float	=	'float',
-	vector2	=	'vector2',
-	vector3	=	'vector3',
-	json	=	'json',
+export enum ETypeNames {
+	char		=	'char',
+	uchar		=	'uchar',
+	short		=	'short',
+	ushort		=	'ushort',
+	int			=	'int',
+	uint		=	'uint',
+	int64		=	'int64',
+	uint64		=	'uint64',
+	string		=	'string',
+	double		=	'double',
+	float		=	'float',
+	vector2		=	'vector2',
+	vector3		=	'vector3',
+	json		=	'json',
+	date		=	'date',
+	tinydate	=	'tinydate',
+	timestamp	=	'timestamp',
+	utctime		=	'utctime',
 };
 
 enum EType {
@@ -167,7 +180,7 @@ export class CTypeChecker
 		let s = typeString.replace(/ /g, '').replace(/\t/g, '').replace(/\n/g, '').replace(/\r/g, '');
 		this.__s = s;
 		if (NullStr(s)) {
-			this._type = {type:EType.base, typename:ETypeNameMap.string, is_number:false};
+			this._type = {type:EType.base, typename:ETypeNames.string, is_number:false};
 			return;
 		}
 		let tt = this.initType({s, i:0});
@@ -176,6 +189,12 @@ export class CTypeChecker
 	}
 
 	public get s(): string { return this.__s; }
+	// get and set Date Format
+	public static set DateFmt(s: string) { DateFmt = s; console.log(`[TypeCheck] : Change Date format to "${DateFmt}"`) }
+	public static get DateFmt(): string { return DateFmt; }
+	// get and set Tiny Date Format
+	public static set TinyDateFmt(s: string) { TinyDateFMT = s; console.log(`[TypeCheck] : Change Tiny Date format to "${TinyDateFMT}"`); }
+	public static get TinyDateFmt(): string { return TinyDateFMT; }
 
 	public CheckValue(value: xlsx.CellObject|undefined): boolean {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) {
@@ -184,8 +203,10 @@ export class CTypeChecker
 		if (this._type.is_number) {
 			if (typeof value.v !== 'number') return false;
 			return CheckNumberInRange(value.v, this._type);
+		} else if (BaseDateTypeSet.has(this._type.typename||'')) {
+			return value.t === 'd';
 		} else {
-			if (this._type.typename == ETypeNameMap.string) {
+			if (this._type.typename == ETypeNames.string) {
 				return true;
 			}
 			let tmpObj:any = undefined;
@@ -210,6 +231,27 @@ export class CTypeChecker
 				return value.v.toString();
 			}
 			return value.w ? value.w : '';
+		} else if (BaseDateTypeSet.has(this._type.typename||'')) {
+			if (value == undefined) return '';
+			if (value.t === 'd') {
+				const date:Date = <Date>value.v;
+				if (date == undefined) {
+					return '';
+				}
+				if (this._type.typename === ETypeNames.utctime) {
+					const t = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDay(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds())
+					return (Math.round(t / 1000)).toString();
+				} else if (this._type.typename === ETypeNames.timestamp) {
+					return (Math.round(date.getTime() / 1000)).toString();
+				} else if (this._type.typename === ETypeNames.date) {
+					return dateformat.default(date, DateFmt);
+				} else if (this._type.typename === ETypeNames.tinydate) {
+					return dateformat.default(date, TinyDateFMT);
+				}
+
+				date.getUTCDate
+			}
+			return '';
 		} else {
 			if (value && value.w) {
 				return value.w;
@@ -240,7 +282,7 @@ export class CTypeChecker
 				}
 				return false;
 			}
-			else if (type.typename == ETypeNameMap.json) {
+			else if (type.typename == ETypeNames.json) {
 				return true;
 			}
 			return typeof tmpObj === 'string';
@@ -319,9 +361,9 @@ export class CTypeChecker
 			}
 			const typename = p.s.substr(typescope.start, typescope.len);
 			if (!BaseTypeSet.has(typename)) throw `gen type check error: base type = ${this._type.typename} not exist!`;
-			if (typename == ETypeNameMap.vector2 || typename == ETypeNameMap.vector3) {
-				thisNode = {type:EType.base, typename:ETypeNameMap.float, is_number:true};
-				const prevNode: CType = { type:EType.array, num:((typename==ETypeNameMap.vector2)?2:3), is_number:false };
+			if (typename == ETypeNames.vector2 || typename == ETypeNames.vector3) {
+				thisNode = {type:EType.base, typename:ETypeNames.float, is_number:true};
+				const prevNode: CType = { type:EType.array, num:((typename==ETypeNames.vector2)?2:3), is_number:false };
 				prevNode.next = thisNode;
 				thisNode = prevNode;
 			} else {

@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as chalk from 'chalk';
 
-import {CTypeChecker,ETypeNameMap} from "./TypeChecker";
+import {CTypeChecker,ETypeNames} from "./TypeChecker";
 
 /*************** console color ***************/
 const yellow_ul = chalk.default.yellow.underline;	//yellow under line
@@ -25,6 +25,7 @@ function exception(txt: string, ex?:any) {
 	if (ex) { logger(false, red(ex)); }
 	throw txt;
 }
+/************ console color end*************/
 
 function NullStr(s: string) {
 	if (typeof s === "string") {
@@ -33,9 +34,9 @@ function NullStr(s: string) {
 	return true;
 }
 
-/************ console color end*************/
-
 const gRootDir = process.cwd();
+CTypeChecker.DateFmt = gCfg.DateFmt;
+CTypeChecker.TinyDateFmt = gCfg.TinyDateFmt;
 
 function ParseCSVLine(arry: Array<string>): string {
 	for (let i = 0; i < arry.length; ++i) {
@@ -178,7 +179,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			if (cell == undefined || cell.w == undefined || NullStr(cell.w) || (gCfg.EnableExportCommentColumns == false && cell.w[0] == '#')) {
 				continue;
 			}
-			ColumnArry.push({id:columnIdx.curr10, sid:colName, name:cell.w, checker:(cell.w[0] == '#')?new CTypeChecker(ETypeNameMap.string):<any>undefined});
+			ColumnArry.push({id:columnIdx.curr10, sid:colName, name:cell.w, checker:(cell.w[0] == '#')?new CTypeChecker(ETypeNames.string):<any>undefined});
 			tmpArry.push(cell.w);
 		}while(columnIdx.next);
 		++rowIdx;
@@ -229,6 +230,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				}
 				tmpArry.push(`${v}`);
 			} catch (ex) {
+				new CTypeChecker(typeStr);
 				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column`
 						+ ` "${yellow_ul(col.name)}" format error "${yellow_ul(cell.w)}". expect is "${yellow_ul(typeStr)}"!`, ex);
 			}
@@ -292,7 +294,24 @@ async function HandleExcelFile(fileName: string) {
 		logger(true, `- Pass File "${fileName}"`);
 		return;
 	}
-	const excel = xlsx.readFile(fileName);
+	let opt:xlsx.ParsingOptions = {
+		// codepage: 0,//If specified, use code page when appropriate **
+		cellFormula: false,//Save formulae to the .f field
+		cellHTML: false,//Parse rich text and save HTML to the .h field
+		cellText: true,//Generated formatted text to the .w field
+		cellDates: true,//Store dates as type d (default is n)
+		/**
+		 * If specified, use the string for date code 14 **
+		 * https://github.com/SheetJS/js-xlsx#parsing-options
+		 *		Format 14 (m/d/yy) is localized by Excel: even though the file specifies that number format,
+		 *		it will be drawn differently based on system settings. It makes sense when the producer and
+		 *		consumer of files are in the same locale, but that is not always the case over the Internet.
+		 *		To get around this ambiguity, parse functions accept the dateNF option to override the interpretation of that specific format string.
+		 */
+		dateNF: 'yyyy/mm/dd',
+		WTF: true,//If true, throw errors on unexpected file features **
+	};
+	const excel = xlsx.readFile(fileName, opt);
 	if (excel == null) {
 		exception(`excel ${yellow_ul(fileName)} open failure.`);
 	}

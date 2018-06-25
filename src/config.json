@@ -7,7 +7,7 @@
         "M姓名库.xlsx"
     ],
     "ExcludeCsvTableNames": [
-        "Example"
+        "TestCase"
     ],
     "Export": {
         "OutputDir": "./test/csv/",
@@ -20,6 +20,9 @@
         "HeaderType": "static-ts-node"
     },
     "CSVNameCellID": "B1",
+    "see: https://www.npmjs.com/package/dateformat": false,
+    "DateFmt": "yyyy/mm/dd HH:MM:ss",
+    "TinyDateFmt": "yy/mm/dd",
     "LineBreak": "\n",
     "EnableTypeCheck": true,
     "EnableDebugOutput": true,
