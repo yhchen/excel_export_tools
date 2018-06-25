@@ -19,6 +19,9 @@
  * 		|		string		| auto change 'line break' to '\n'						|
  * 		|		double		| ...													|
  * 		|		float		| ...													|
+ * 		|		date		| YYYY/MM/DD HH:MM:SS									|
+ * 		|		tinydate	| YYYY/MM/DD											|
+ * 		|		timestamp	| Linux time stamp										|
  * 		-----------------------------------------------------------------------------
  *
  *
@@ -93,7 +96,7 @@ function FindNum(s: string, idx?: number): {start:number, end:number, len:number
 }
 
 // all base type
-const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uint','int64','uint64','string','double','float','vector2','vector3', 'json' ]);
+const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uint','int64','uint64','string','double','float','vector2','vector3', 'json', 'date','tinydate','timestamp', ]);
 // number type
 const BaseNumberTypeSet = new Set<string>(['char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ])
 // number type range
@@ -162,7 +165,6 @@ export class CTypeChecker
 {
 	public constructor(typeString: string) {
 		let s = typeString.replace(/ /g, '').replace(/\t/g, '').replace(/\n/g, '').replace(/\r/g, '');
-		s = s.replace(/vector2/g, "float[2]").replace(/vector3/g, "float[3]");
 		this.__s = s;
 		if (NullStr(s)) {
 			this._type = {type:EType.base, typename:ETypeNameMap.string, is_number:false};
@@ -317,7 +319,14 @@ export class CTypeChecker
 			}
 			const typename = p.s.substr(typescope.start, typescope.len);
 			if (!BaseTypeSet.has(typename)) throw `gen type check error: base type = ${this._type.typename} not exist!`;
-			thisNode = {type:EType.base, typename:typename, is_number:BaseNumberTypeSet.has(typename)};
+			if (typename == ETypeNameMap.vector2 || typename == ETypeNameMap.vector3) {
+				thisNode = {type:EType.base, typename:ETypeNameMap.float, is_number:true};
+				const prevNode: CType = { type:EType.array, num:((typename==ETypeNameMap.vector2)?2:3), is_number:false };
+				prevNode.next = thisNode;
+				thisNode = prevNode;
+			} else {
+				thisNode = {type:EType.base, typename:typename, is_number:BaseNumberTypeSet.has(typename)};
+			}
 			p.i = typescope.end+1;
 		}
 

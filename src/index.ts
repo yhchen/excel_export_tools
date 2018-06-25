@@ -127,6 +127,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 	const CSVName = worksheet[gCfg.CSVNameCellID].w;
 	if (gCfg.ExcludeCsvTableNames.indexOf(CSVName) >= 0) {
 		logger(true, `- Pass CSV "${CSVName}"`);
+		return;
 	}
 
 	let ColumnMax = 'A';
