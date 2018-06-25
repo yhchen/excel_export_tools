@@ -108,6 +108,7 @@ let DateFmt: string = 'yyyy/mm/dd HH:MM:ss';
 console.log(`[TypeCheck] : Default Date format is "${DateFmt}"`)
 let TinyDateFMT: string = 'yy/mm/dd';
 console.log(`[TypeCheck] : Default Tiny Date format is "${TinyDateFMT}"`)
+const TimeZoneOffset = new Date().getTimezoneOffset() * 60;
 // number type range
 const NumberRangeMap = new Map<string, {min:number, max:number}>([
 		['char',	{ min:-127,			max:127 }],
@@ -239,8 +240,7 @@ export class CTypeChecker
 					return '';
 				}
 				if (this._type.typename === ETypeNames.utctime) {
-					const t = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDay(), date.getUTCHours(), date.getUTCMinutes(), date.getUTCSeconds(), date.getUTCMilliseconds())
-					return (Math.round(t / 1000)).toString();
+					return (Math.round(date.getTime() / 1000 + TimeZoneOffset)).toString();
 				} else if (this._type.typename === ETypeNames.timestamp) {
 					return (Math.round(date.getTime() / 1000)).toString();
 				} else if (this._type.typename === ETypeNames.date) {
@@ -248,8 +248,6 @@ export class CTypeChecker
 				} else if (this._type.typename === ETypeNames.tinydate) {
 					return dateformat.default(date, TinyDateFMT);
 				}
-
-				date.getUTCDate
 			}
 			return '';
 		} else {
