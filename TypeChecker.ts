@@ -1,5 +1,8 @@
 /**
  * Support Format Check:
+ * 		Using typescript type define link grammar.
+ * 		Extends number type for digital size limit check.
+ * 		Add common types of game development(like vector2 vector3...);
  *
  * Base Type:
  * 		-----------------------------------------------------------------------------
@@ -31,6 +34,8 @@
  * 		| vector2			| float[2]												|
  * 		-----------------------------------------------------------------------------
  * 		| vector3			| float[3]												|
+ * 		-----------------------------------------------------------------------------
+ * 		| json				| JSON.parse() is vaild									|
  * 		-----------------------------------------------------------------------------
  */
 import * as xlsx from 'xlsx';
@@ -88,7 +93,7 @@ function FindNum(s: string, idx?: number): {start:number, end:number, len:number
 }
 
 // all base type
-const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uint','int64','uint64','string','double','float','vector2','vector3', ]);
+const BaseTypeSet = new Set<string>([ 'char','uchar','short','ushort','int','uint','int64','uint64','string','double','float','vector2','vector3', 'json' ]);
 // number type
 const BaseNumberTypeSet = new Set<string>(['char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ])
 // number type range
@@ -110,19 +115,20 @@ function CheckNumberInRange(n: number, type: CType): boolean {
 
 // type name enum
 enum ETypeNameMap {
-	char	=	"char",
-	uchar	=	"uchar",
-	short	=	"short",
-	ushort	=	"ushort",
-	int		=	"int",
-	uint	=	"uint",
-	int64	=	"int64",
-	uint64	=	"uint64",
-	string	=	"string",
-	double	=	"double",
-	float	=	"float",
-	vector2	=	"vector2",
-	vector3	=	"vector3",
+	char	=	'char',
+	uchar	=	'uchar',
+	short	=	'short',
+	ushort	=	'ushort',
+	int		=	'int',
+	uint	=	'uint',
+	int64	=	'int64',
+	uint64	=	'uint64',
+	string	=	'string',
+	double	=	'double',
+	float	=	'float',
+	vector2	=	'vector2',
+	vector3	=	'vector3',
+	json	=	'json',
 };
 
 enum EType {
@@ -190,7 +196,7 @@ export class CTypeChecker
 		return true;
 	}
 
-	public GetValue(value: xlsx.CellObject|undefined): string {
+	public GetCsvData(value: xlsx.CellObject|undefined): string {
 		if (this._type.is_number) {
 			if (value == undefined) return '0';
 			if (typeof value.v === 'number') return value.v.toString();
@@ -227,6 +233,14 @@ export class CTypeChecker
 					return CheckNumberInRange(+tmpObj, type);
 				}
 				return false;
+			}
+			else if (type.typename == ETypeNameMap.json) {
+				try {
+					let v = JSON.parse(tmpObj);
+					return v != undefined;
+				} catch (ex) {
+					return false;
+				}
 			}
 			return typeof tmpObj === 'string';
 			break;

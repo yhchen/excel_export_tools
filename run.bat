@@ -36,7 +36,7 @@ if not "%1" == "0" (
 	call tsc -p .
 
 	echo ======================================================
-	echo = execute build proto
+	echo = execute build config files
 	call node ./bin/index.js
 	pause
 )

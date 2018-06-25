@@ -9,7 +9,16 @@
 	"ExcludeCsvTableNames": [
 		"AchieveLevel"
 	],
-	"OutputDir": "./test/csv/",
+	"Export": {
+		"OutputDir": "./test/csv/",
+		"EnableHeader": true,
+		"-comment": [
+			"static-ts-node   : static code using typescript using by nodejs",
+			"static-ts-client : static code using typescript using by web browser",
+			"cpp-headers      : static header code."
+		],
+		"HeaderType": "static-ts-node"
+	},
 	"CSVNameCellID": "B1",
 	"LineBreak": "\n",
 	"enableTypeCheck": true,

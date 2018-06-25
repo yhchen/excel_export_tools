@@ -30,7 +30,7 @@ fi
 
 if [ ! "$1" == "0" ]; then
 	echo ======================================================
-	echo = execute build proto
+	echo = execute build config files
 	node ./bin/index.js
 fi
 

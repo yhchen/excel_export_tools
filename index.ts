@@ -6,7 +6,6 @@ import * as path from 'path';
 import * as chalk from 'chalk';
 
 import {CTypeChecker} from "./TypeChecker";
-import { start } from 'repl';
 
 /*************** console color ***************/
 const yellow = chalk.default.yellowBright;
@@ -21,7 +20,7 @@ function logger(debugMode: boolean, ...args: any[]) {
 }
 function trace(...args: any[]) { logger(true, ...args); }
 function exception(txt: string, ex?:any) {
-	logger(false, brightWhite(txt));
+	logger(false, red(`[ERROR] `) + txt);
 	if (ex) { logger(false, red(ex)); }
 	throw txt;
 }
@@ -60,7 +59,7 @@ class XlsColumnIter
 		}
 		this._max = XlsColumnIter.S26ToNum(max);
 	}
-	public seekToBegin() { this._curr = 0; }
+	public seekToBegin() { this._curr = 1; }
 	public get next(): string|undefined {
 		if (this.end) {
 			return undefined;
@@ -69,7 +68,7 @@ class XlsColumnIter
 	}
 	public get curr26(): string { return XlsColumnIter.NumToS26(this._curr); }
 	public get curr10(): number { return this._curr; }
-	public get end(): boolean { return this._curr >= this._max; }
+	public get end(): boolean { return this._curr > this._max; }
 
 	public static S26ToNum(str: string) {
 		let result = 0;
@@ -86,12 +85,12 @@ class XlsColumnIter
 		while (num > 0){
 			let m = num % 26;
 			if (m == 0) m = 26;
-			result += String.fromCharCode(m + 64);
+			result = String.fromCharCode(m + 64) + result;
 			num = (num - m) / 26;
 		}
 		return result;
 	}
-	private _curr = 0;
+	private _curr = 1;
 	private _max: number;
 	private static readonly VAILDWORD = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 }
@@ -207,14 +206,14 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 					return;
 				}
 			}
-			tmpArry.push(col.checker.GetValue(cell));
+			tmpArry.push(col.checker.GetCsvData(cell));
 		}
 		if (!firstCol) {
 			csvcontent += tmpArry.join(',').replace(/\n/g, '\\n').replace(/\r/g, '') + gCfg.LineBreak;
 		}
 	}
-	fs.writeFileSync(path.join(gCfg.OutputDir, CSVName+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
-	logger(false, `${green('[SUCCESS]')} Output file [${yellow(path.join(gCfg.OutputDir, CSVName+'.csv'))}]. Total use tick:${green((Date.now() - StartTick).toString())}`);
+	fs.writeFileSync(path.join(gCfg.Export.OutputDir, CSVName+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
+	logger(false, `${green('[SUCCESS]')} Output file [${yellow(path.join(gCfg.Export.OutputDir, CSVName+'.csv'))}]. Total use tick:${green((Date.now() - StartTick).toString())}`);
 }
 
 async function HandleExcelFile(fileName: string) {
@@ -242,8 +241,8 @@ async function HandleExcelFile(fileName: string) {
 
 function main() {
 	const StartTimer = Date.now();
-	if (!fs.existsSync(gCfg.OutputDir)) {
-		fs.mkdirSync(gCfg.OutputDir);
+	if (!fs.existsSync(gCfg.Export.OutputDir)) {
+		fs.mkdirSync(gCfg.Export.OutputDir);
 	}
 	for (let fileOrPath of gCfg.IncludeFilesAndPath) {
 		if (!path.isAbsolute(fileOrPath)) {
