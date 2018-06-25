@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as chalk from 'chalk';
 
-import {CTypeChecker} from "./TypeChecker";
+import {CTypeChecker,ETypeNameMap} from "./TypeChecker";
 
 /*************** console color ***************/
 const yellow_ul = chalk.default.yellow.underline;	//yellow under line
@@ -14,7 +14,7 @@ const red = chalk.default.redBright;
 const green = chalk.default.greenBright;
 const brightWhite = chalk.default.whiteBright.bold
 function logger(debugMode: boolean, ...args: any[]) {
-	if (!gCfg.enableDebugOutput && debugMode) {
+	if (!gCfg.EnableDebugOutput && debugMode) {
 		return;
 	}
 	console.log(...args);
@@ -138,18 +138,30 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 	// find column name
 	for (; rowIdx <= RowMax; ++rowIdx) {
 		const firstCell = GetCellData(worksheet, 'A', rowIdx);
-		if (firstCell == undefined || firstCell.w == undefined || NullStr(firstCell.w) || firstCell.w[0] == '#') {
+		if (firstCell == undefined || firstCell.w == undefined || NullStr(firstCell.w)) {
+			continue;
+		}
+		if (firstCell.w[0] == '#') {
+			if (gCfg.EnableExportCommentRows) {
+				columnIdx.seekToBegin();
+				tmpArry = [];
+				do {
+					const cell = GetCellData(worksheet, columnIdx.curr26, rowIdx);
+					tmpArry.push((cell && cell.w)?cell.w:'');
+				}while(columnIdx.next);
+				csvcontent += tmpArry.join(',') + gCfg.LineBreak;
+			}
 			continue;
 		}
 		columnIdx.seekToBegin();
 		tmpArry = [];
 		do {
 			const colName = columnIdx.curr26;
-			let cell = GetCellData(worksheet, colName, rowIdx);
-			if (cell == undefined || cell.w == undefined || NullStr(cell.w) || cell.w[0] == '#') {
+			const cell = GetCellData(worksheet, colName, rowIdx);
+			if (cell == undefined || cell.w == undefined || NullStr(cell.w) || (gCfg.EnableExportCommentColumns == false && cell.w[0] == '#')) {
 				continue;
 			}
-			ColumnArry.push({id:columnIdx.curr10, sid:colName, name:cell.w, checker:<any>undefined});
+			ColumnArry.push({id:columnIdx.curr10, sid:colName, name:cell.w, checker:(cell.w[0] == '#')?new CTypeChecker(ETypeNameMap.string):<any>undefined});
 			tmpArry.push(cell.w);
 		}while(columnIdx.next);
 		++rowIdx;
@@ -159,28 +171,50 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 	// find type
 	for (; rowIdx <= RowMax; ++rowIdx) {
 		const firstCell = GetCellData(worksheet, ColumnArry[0].sid, rowIdx);
-		if (firstCell == undefined || firstCell.w == undefined || NullStr(firstCell.w) || firstCell.w[0] == '#') {
+		if (firstCell == undefined || firstCell.w == undefined || NullStr(firstCell.w)) {
 			continue;
 		}
+		if (firstCell.w[0] == '#') {
+			if (gCfg.EnableExportCommentRows) {
+				columnIdx.seekToBegin();
+				tmpArry = [];
+				do {
+					const cell = GetCellData(worksheet, columnIdx.curr26, rowIdx);
+					tmpArry.push((cell && cell.w)?cell.w:'');
+				}while(columnIdx.next);
+				csvcontent += tmpArry.join(',') + gCfg.LineBreak;
+			}
+			continue;
+		}
+
 		if (firstCell.w[0] != '*') {
 			exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column not found!`);
 		}
 		tmpArry = [];
-		for (let col of ColumnArry) {
-			let cell = GetCellData(worksheet, col.sid, rowIdx);
+		for (const col of ColumnArry) {
+			// continue...
+			if (col.checker != undefined) {
+				if (gCfg.EnableExportCommentColumns) {
+					tmpArry.push('');
+				}
+				continue;
+			}
+			const cell = GetCellData(worksheet, col.sid, rowIdx);
 			if (cell == undefined || cell.w == undefined) {
 				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column "${yellow_ul(col.name)}" not found!`);
 				return;
 			}
+			const typeStr = col.id <= 1 ? cell.w.substr(1):cell.w;
 			try {
-				col.checker = new CTypeChecker(col.id <= 1 ? cell.w.substr(1):cell.w);
+				col.checker = new CTypeChecker(typeStr);
 				let v = cell.w.replace(/"/g, `""`);
 				if (v.indexOf(',') >= 0) {
 					v = '"' + v + '"';
 				}
 				tmpArry.push(`${v}`);
 			} catch (ex) {
-				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column "${yellow_ul(col.name)}" format error "${yellow_ul(cell.w)}". expect is "${yellow_ul(col.checker.s)}"!`, ex);
+				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column`
+						+ ` "${yellow_ul(col.name)}" format error "${yellow_ul(cell.w)}". expect is "${yellow_ul(typeStr)}"!`, ex);
 			}
 		}
 		++rowIdx;
@@ -193,15 +227,27 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		let firstCol = true;
 		tmpArry = [];
 		for (let col of ColumnArry) {
-			let cell = GetCellData(worksheet, col.sid, rowIdx);
+			const cell = GetCellData(worksheet, col.sid, rowIdx);
 			if (firstCol) {
-				if (cell == undefined || cell.w == undefined || NullStr(cell.w) || cell.w[0] == '#') {
+				if (cell == undefined || cell.w == undefined || NullStr(cell.w)) {
+					break;
+				}
+				else if (cell.w[0] == '#') {
+					if (gCfg.EnableExportCommentRows) {
+						columnIdx.seekToBegin();
+						tmpArry = [];
+						do {
+							const cell = GetCellData(worksheet, columnIdx.curr26, rowIdx);
+							tmpArry.push((cell && cell.w)?cell.w:'');
+						}while(columnIdx.next);
+						csvcontent += tmpArry.join(',') + gCfg.LineBreak;
+					}
 					break;
 				}
 				firstCol = false;
 			}
-			let value = cell && cell.w ? cell.w : '';
-			if (gCfg.enableTypeCheck) {
+			const value = cell && cell.w ? cell.w : '';
+			if (gCfg.EnableTypeCheck) {
 				if (!col.checker.CheckValue(cell)) {
 					col.checker.CheckValue(cell);
 					exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell "${yellow_ul(col.sid+(rowIdx).toString())}" format not match "${yellow_ul(value)}" with ${yellow_ul(col.checker.s)}!`);

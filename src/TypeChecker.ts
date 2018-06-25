@@ -25,10 +25,10 @@
  * Combination Type:
  *
  * 		-----------------------------------------------------------------------------
- * 		| {"<name>":<type>}	| start with '{' and end with '}' with json format.		|
+ * 		| {<name>:<type>}	| start with '{' and end with '}' with json format.		|
  * 		|					| <type> is one of "Base Type" or "Combination Type".	|
  * 		-----------------------------------------------------------------------------
- * 		| <type>[<N>]		| <type> is one of "Base Type" or "Combination Type".	|
+ * 		| <type>[<N>|null]	| <type> is one of "Base Type" or "Combination Type".	|
  * 		|					| <N> is empty(variable-length) or number.				|
  * 		-----------------------------------------------------------------------------
  * 		| vector2			| float[2]												|
@@ -114,7 +114,7 @@ function CheckNumberInRange(n: number, type: CType): boolean {
 }
 
 // type name enum
-enum ETypeNameMap {
+export enum ETypeNameMap {
 	char	=	'char',
 	uchar	=	'uchar',
 	short	=	'short',
