@@ -8,7 +8,8 @@ import * as chalk from 'chalk';
 import {CTypeChecker} from "./TypeChecker";
 
 /*************** console color ***************/
-const yellow = chalk.default.yellowBright;
+const yellow_ul = chalk.default.yellow.underline;	//yellow under line
+const yellow = chalk.default.yellow;
 const red = chalk.default.redBright;
 const green = chalk.default.greenBright;
 const brightWhite = chalk.default.whiteBright.bold
@@ -101,6 +102,17 @@ function GetCellData(worksheet: xlsx.WorkSheet, column: string, row: number): xl
 
 function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.WorkSheet): void{
 	const StartTick = Date.now();
+
+	// find csv name
+	if (worksheet[gCfg.CSVNameCellID] == undefined || NullStr(worksheet[gCfg.CSVNameCellID].w)) {
+		logger(false, `excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV name not defined. Ignore it!`);
+		return;
+	}
+	const CSVName = worksheet[gCfg.CSVNameCellID].w;
+	if (gCfg.ExcludeCsvTableNames.indexOf(CSVName) >= 0) {
+		logger(true, `- Pass CSV "${CSVName}"`);
+	}
+
 	let ColumnMax = 'A';
 	let RowMax = 0;
 	let ColumnArry = new Array<{sid:string, id:number, name:string, checker:CTypeChecker}>();
@@ -108,27 +120,17 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 	{
 		const REF = worksheet["!ref"];
 		if (!REF) {
-			logger(false, `excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] IS EMPTY. Ignore it!`);
+			logger(false, `excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" IS EMPTY. Ignore it!`);
 			return;
 		}
 		let SPREF = REF.split(":");
 		if (SPREF.length != 2) {
-			logger(false, `excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] [!ref] = [${REF}] format error!!`);
+			logger(false, `excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" [!ref] = "${REF}" format error!!`);
 			return;
 		}
 		ColumnMax = SPREF[1].toUpperCase().replace(/([0-9]*)/g, '');
 		RowMax = parseInt(SPREF[1].toUpperCase().replace(/([A-Z]*)/g, ''));
 	}
-	// find csv name
-	if (worksheet[gCfg.CSVNameCellID] == undefined || NullStr(worksheet[gCfg.CSVNameCellID].w)) {
-		logger(false, `excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV name not defined. Ignore it!`);
-		return;
-	}
-	const CSVName = worksheet[gCfg.CSVNameCellID].w;
-	if (gCfg.ExcludeCsvTableNames.indexOf(CSVName) >= 0) {
-		logger(true, `- Pass CSV [${CSVName}]`);
-	}
-
 	let rowIdx = 2;
 	let csvcontent = '';
 	let columnIdx = new XlsColumnIter(ColumnMax);
@@ -161,13 +163,13 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			continue;
 		}
 		if (firstCell.w[0] != '*') {
-			exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Type Column not found!`);
+			exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column not found!`);
 		}
 		tmpArry = [];
 		for (let col of ColumnArry) {
 			let cell = GetCellData(worksheet, col.sid, rowIdx);
 			if (cell == undefined || cell.w == undefined) {
-				exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Type Column [${yellow(col.name)}] not found!`);
+				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column "${yellow_ul(col.name)}" not found!`);
 				return;
 			}
 			try {
@@ -178,7 +180,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				}
 				tmpArry.push(`${v}`);
 			} catch (ex) {
-				exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Type Column [${yellow(col.name)}] format error [${yellow(cell.w)}]!`, ex);
+				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column "${yellow_ul(col.name)}" format error "${yellow_ul(cell.w)}". expect is "${yellow_ul(col.checker.s)}"!`, ex);
 			}
 		}
 		++rowIdx;
@@ -201,8 +203,8 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			let value = cell && cell.w ? cell.w : '';
 			if (gCfg.enableTypeCheck) {
 				if (!col.checker.CheckValue(cell)) {
-					// col.checker.CheckValue(cell);
-					exception(`excel file [${yellow(fileName)}] sheet [${yellow(sheetName)}] CSV Cell [${yellow(col.sid+(rowIdx+1).toString())}] format not match [${yellow(value)}]!`);
+					col.checker.CheckValue(cell);
+					exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell "${yellow_ul(col.sid+(rowIdx+1).toString())}" format not match "${yellow_ul(value)}"!`);
 					return;
 				}
 			}
@@ -213,7 +215,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		}
 	}
 	fs.writeFileSync(path.join(gCfg.Export.OutputDir, CSVName+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
-	logger(false, `${green('[SUCCESS]')} Output file [${yellow(path.join(gCfg.Export.OutputDir, CSVName+'.csv'))}]. Total use tick:${green((Date.now() - StartTick).toString())}`);
+	logger(false, `${green('[SUCCESS]')} Output file "${yellow_ul(path.join(gCfg.Export.OutputDir, CSVName+'.csv'))}". Total use tick:${green((Date.now() - StartTick).toString())}`);
 }
 
 async function HandleExcelFile(fileName: string) {
@@ -222,18 +224,18 @@ async function HandleExcelFile(fileName: string) {
 		return;
 	}
 	if (gCfg.ExcludeFileNames.indexOf(path.basename(fileName)) >= 0) {
-		logger(true, `- Pass File [${fileName}]`);
+		logger(true, `- Pass File "${fileName}"`);
 		return;
 	}
 	const excel = xlsx.readFile(fileName);
 	if (excel == null) {
-		exception(`excel ${yellow(fileName)} open failure.`);
+		exception(`excel ${yellow_ul(fileName)} open failure.`);
 	}
 	if (excel.Sheets == null) {
 		return;
 	}
 	for (let sheetName of excel.SheetNames) {
-		logger(true, `handle excel [${brightWhite(fileName)}] sheet [${yellow(sheetName)}]`);
+		logger(true, `handle excel "${brightWhite(fileName)}" sheet "${yellow_ul(sheetName)}"`);
 		const worksheet = excel.Sheets[sheetName];
 		HandleWorkSheet(fileName, sheetName, worksheet);
 	}
@@ -249,7 +251,7 @@ function main() {
 			fileOrPath = path.join(gRootDir, fileOrPath);
 		}
 		if (!fs.existsSync(fileOrPath)) {
-			logger(false, `file or directory [${yellow(fileOrPath)}] not found!`);
+			logger(false, `file or directory "${yellow_ul(fileOrPath)}" not found!`);
 			continue;
 		}
 		if (fs.statSync(fileOrPath).isDirectory()) {
@@ -257,11 +259,11 @@ function main() {
 		} else if (fs.statSync(fileOrPath).isFile()) {
 			HandleExcelFile(fileOrPath);
 		} else {
-			exception(`UnHandle file or directory type : [${yellow(fileOrPath)}]`);
+			exception(`UnHandle file or directory type : "${yellow_ul(fileOrPath)}"`);
 		}
 	}
 
-	logger(false, `Total Use Tick : [${yellow((Date.now() - StartTimer).toString())}]`);
+	logger(false, `Total Use Tick : "${yellow_ul((Date.now() - StartTimer).toString())}"`);
 	logger(false, yellow("----------------------------------------"));
 	logger(false, yellow("-            DONE WITH ALL             -"));
 	logger(false, yellow("----------------------------------------"));

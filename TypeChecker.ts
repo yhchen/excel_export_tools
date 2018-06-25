@@ -173,6 +173,8 @@ export class CTypeChecker
 		this._type = tt;
 	}
 
+	public get s(): string { return this.__s; }
+
 	public CheckValue(value: xlsx.CellObject|undefined): boolean {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) {
 			return true;
@@ -235,12 +237,7 @@ export class CTypeChecker
 				return false;
 			}
 			else if (type.typename == ETypeNameMap.json) {
-				try {
-					let v = JSON.parse(tmpObj);
-					return v != undefined;
-				} catch (ex) {
-					return false;
-				}
+				return true;
 			}
 			return typeof tmpObj === 'string';
 			break;
