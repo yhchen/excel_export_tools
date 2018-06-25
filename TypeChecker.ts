@@ -198,9 +198,9 @@ export class CTypeChecker
 
 	public GetCsvData(value: xlsx.CellObject|undefined): string {
 		if (this._type.is_number) {
-			if (value == undefined) return '0';
+			if (value == undefined) return '';
 			if (typeof value.v === 'number') return value.v.toString();
-			return value.w ? value.w : '0';
+			return value.w ? value.w : '';
 		} else {
 			if (value && value.w) {
 				if (value.w.indexOf(',') < 0 && value.w.indexOf('"') < 0) {
