@@ -8,21 +8,21 @@
  *      -----------------------------------------------------------------------------
  *      |        type       |                        desc                           |
  *      -----------------------------------------------------------------------------
- *      |        char       | min:-127                    max:127                   |
- *      |        uchar      | min:0                        max:255                  |
- *      |        short      | min:-32768                max:32767                   |
- *      |        ushort     | min:0                        max:65535                |
- *      |        int        | min:-2147483648            max:2147483647             |
- *      |        uint       | min:0                        max:4294967295           |
- *      |        int64      | min:-9223372036854775808    max:9223372036854775807   |
- *      |        uint64     | min:0                        max:18446744073709551615 |
- *      |        string     | auto change 'line break' to '\n'                      |
- *      |        double     | ...                                                   |
- *      |        float      | ...                                                   |
- *      |        date       | YYYY/MM/DD HH:mm:ss                                   |
- *      |        tinydate   | YYYY/MM/DD                                            |
- *      |        timestamp  | Linux time stamp                                      |
- *      |        utctime    | UTC time stamp                                        |
+ *      |      char         | min:-127                  max:127                     |
+ *      |      uchar        | min:0                     max:255                     |
+ *      |      short        | min:-32768                max:32767                   |
+ *      |      ushort       | min:0                     max:65535                   |
+ *      |      int          | min:-2147483648           max:2147483647              |
+ *      |      uint         | min:0                     max:4294967295              |
+ *      |      int64        | min:-9223372036854775808  max:9223372036854775807     |
+ *      |      uint64       | min:0                     max:18446744073709551615    |
+ *      |      string       | auto change 'line break' to '\n'                      |
+ *      |      double       | ...                                                   |
+ *      |      float        | ...                                                   |
+ *      |      date         | YYYY/MM/DD HH:mm:ss                                   |
+ *      |      tinydate     | YYYY/MM/DD                                            |
+ *      |      timestamp    | Linux time stamp                                      |
+ *      |      utctime      | UTC time stamp                                        |
  *      -----------------------------------------------------------------------------
  *
  *
@@ -42,7 +42,6 @@
  *      | json              | JSON.parse() is vaild                                 |
  *      -----------------------------------------------------------------------------
  */
-import * as xlsx from 'xlsx';
 import { isArray, isObject, isNumber } from 'util';
 import * as moment from 'moment';
 
@@ -104,11 +103,20 @@ const BaseTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int',
 const BaseNumberTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ]);
 // date type
 const BaseDateTypeSet = new Set<string>([ 'date', 'tinydate', 'timestamp', 'utctime', ]);
+
 let DateFmt: string = 'YYYY/MM/DD HH:mm:ss';
-console.log(`[TypeCheck] : Default Date format is "${DateFmt}"`)
+console.log(`[TypeCheck] : Default Date format is "${DateFmt}"`);
+
 let TinyDateFMT: string = 'YYYY/MM/DD';
-console.log(`[TypeCheck] : Default Tiny Date format is "${TinyDateFMT}"`)
+console.log(`[TypeCheck] : Default Tiny Date format is "${TinyDateFMT}"`);
+
 const TimeZoneOffset = new Date().getTimezoneOffset() * 60;
+console.log(`[TypeCheck] : Time zone offset is "${TimeZoneOffset}"`);
+
+// float precision count
+let FractionDigitsFMT = 6;
+console.log(`[TypeCheck] : Default Float PrecisionFMT count is "${FractionDigitsFMT}"`);
+
 // number type range
 const NumberRangeMap = new Map<string, {min:number, max:number}>([
 		['char',	{ min:-127,			max:127 }],
@@ -155,23 +163,6 @@ enum EType {
 	date,
 }
 
-enum EExcelCellValueType {
-	string,
-	number,
-	date,
-}
-
-const RangeMap = {
-	"char":		{ min:-127,						max:127 },
-	"uchar":	{ min:0,						max:255 },
-	"short":	{ min:-32768,					max:32767 },
-	"ushort":	{ min:0,						max:65535 },
-	"int":		{ min:-2147483648,				max:2147483647 },
-	"uint":		{ min:0,						max:4294967295 },
-	"int64":	{ min:-9223372036854775808,		max:9223372036854775807 },
-	"uint64":	{ min:0,						max:18446744073709551615 },
-};
-
 export interface CType
 {
 	type: EType;
@@ -185,8 +176,8 @@ export interface CType
 export class CTypeChecker
 {
 	public constructor(typeString: string) {
-		let s = typeString.replace(/ /g, '').replace(/\t/g, '').replace(/\n/g, '').replace(/\r/g, '');
-		this.__s = s;
+		this.__s = typeString;
+		let s = typeString.replace(/ /g, '').replace(/\t/g, '').replace(/\n/g, '').replace(/\r/g, '').toLowerCase();
 		if (NullStr(s)) {
 			this._type = {type:EType.base, typename:ETypeNames.string, is_number:false};
 			return;
@@ -203,12 +194,15 @@ export class CTypeChecker
 	// get and set Tiny Date Format
 	public static set TinyDateFmt(s: string) { TinyDateFMT = s; console.log(`[TypeCheck] : Change Tiny Date format to "${TinyDateFMT}"`); }
 	public static get TinyDateFmt(): string { return TinyDateFMT; }
+	// get and set Float Precision Format
+	public static set FractionDigitsFMT(v: number) { FractionDigitsFMT = v; console.log(`[TypeCheck] : Change Float precision to "${FractionDigitsFMT}"`); }
+	public static get FractionDigitsFMT(): number { return FractionDigitsFMT; }
 
 	public static IsDateType(data: any): boolean {
 		return (data != undefined && data.constructor != undefined && data.constructor.name === 'Date');
 	}
 
-	public CheckCellVaildate(value: xlsx.CellObject|undefined): boolean {
+	public CheckCellVaildate(value: {w?:string, v?:string|number|boolean|Date}|undefined): boolean {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) {
 			return true;
 		}
@@ -216,7 +210,7 @@ export class CTypeChecker
 			if (typeof value.v !== 'number') return false;
 			return CheckNumberInRange(value.v, this._type);
 		} else if (this._type.type == EType.date) {
-			return value.t === 'd';
+			return CTypeChecker.IsDateType(value.v);
 		} else {
 			if (this._type.typename == ETypeNames.string) {
 				return true;
@@ -233,19 +227,25 @@ export class CTypeChecker
 		return true;
 	}
 
-	public ParseCellStr(value: xlsx.CellObject|undefined): string {
+	public ParseCellStr(value: {w?:string, v?:string|number|boolean|Date}|undefined): string {
 		if (this._type.is_number) {
 			if (value == undefined) return '';
 			if (typeof value.v === 'number') {
-				if (value.v < 1) {
-					return value.v.toString().replace(/0\./g, '.');
+				let num = 0;
+				if (this._type.typename == ETypeNames.double || this._type.typename == ETypeNames.float) {
+					num = +value.v.toFixed(FractionDigitsFMT);
+				} else {
+					num = Math.floor(value.v);
 				}
-				return value.v.toString();
+				if (num < 1) {
+					return num.toString().replace(/0\./g, '.');
+				}
+				return num.toString();
 			}
 			return value.w ? value.w : '';
 		} else if (BaseDateTypeSet.has(this._type.typename||'')) {
 			if (value == undefined) return '';
-			if (value.t === 'd') {
+			if (CTypeChecker.IsDateType(value.v)) {
 				const date:Date = <Date>value.v;
 				if (date == undefined) {
 					return '';
@@ -296,17 +296,7 @@ export class CTypeChecker
 			}
 			return typeof tmpObj === 'string';
 		case EType.date:
-			if (type.typename == undefined) return false;
-			if (type.typename == ETypeNames.date) {
-				return moment.default(tmpObj, DateFmt).isValid();
-			} else if (type.typename == ETypeNames.tinydate) {
-				return moment.default(tmpObj, TinyDateFMT).isValid();
-			} else if (type.typename == ETypeNames.timestamp) {
-				return moment.default(tmpObj, 'X').isValid();
-			} else if (type.typename == ETypeNames.utctime) {
-				return moment.utc(tmpObj, 'X').isValid();
-			}
-			return false;
+			return moment.default(tmpObj).isValid();
 		case EType.object:
 			if (!isObject(tmpObj)) return false;
 			if (!type.obj) return false;

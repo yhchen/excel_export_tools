@@ -39,6 +39,7 @@ function NullStr(s: string) {
 const gRootDir = process.cwd();
 CTypeChecker.DateFmt = gCfg.DateFmt;
 CTypeChecker.TinyDateFmt = gCfg.TinyDateFmt;
+CTypeChecker.FractionDigitsFMT = gCfg.FractionDigitsFMT;
 
 function ParseCSVLine(arry: Array<string>): string {
 	for (let i = 0; i < arry.length; ++i) {
