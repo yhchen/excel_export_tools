@@ -372,6 +372,9 @@ function main() {
 		if (!NullStr(ExceptionLog)) {
 			logger(false, red("Exception Logs:"));
 			logger(false, ExceptionLog);
+			process.exit(-1);
+		} else {
+			process.exit(0);
 		}
 	})
 }

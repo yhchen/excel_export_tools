@@ -199,7 +199,7 @@ export class CTypeChecker
 	public static get FractionDigitsFMT(): number { return FractionDigitsFMT; }
 
 	public static IsDateType(data: any): boolean {
-		return (data != undefined && data.constructor != undefined && data.constructor.name === 'Date');
+		return (data != undefined && moment.isDate(data));
 	}
 
 	public CheckCellVaildate(value: {w?:string, v?:string|number|boolean|Date}|undefined): boolean {
@@ -228,44 +228,13 @@ export class CTypeChecker
 	}
 
 	public ParseCellStr(value: {w?:string, v?:string|number|boolean|Date}|undefined): string {
+		if (value == undefined) return '';
 		if (this._type.is_number) {
-			if (value == undefined) return '';
-			if (typeof value.v === 'number') {
-				let num = 0;
-				if (this._type.typename == ETypeNames.double || this._type.typename == ETypeNames.float) {
-					num = +value.v.toFixed(FractionDigitsFMT);
-				} else {
-					num = Math.floor(value.v);
-				}
-				if (num < 1) {
-					return num.toString().replace(/0\./g, '.');
-				}
-				return num.toString();
-			}
-			return value.w ? value.w : '';
+			return this._fixNumberStr(<any>value.v||value.w||'', this._type);
 		} else if (BaseDateTypeSet.has(this._type.typename||'')) {
-			if (value == undefined) return '';
-			if (CTypeChecker.IsDateType(value.v)) {
-				const date:Date = <Date>value.v;
-				if (date == undefined) {
-					return '';
-				}
-				if (this._type.typename === ETypeNames.utctime) {
-					return (Math.round(date.getTime() / 1000 + TimeZoneOffset)).toString();
-				} else if (this._type.typename === ETypeNames.timestamp) {
-					return (Math.round(date.getTime() / 1000)).toString();
-				} else if (this._type.typename === ETypeNames.date) {
-					return moment.default(date).format(DateFmt);
-				} else if (this._type.typename === ETypeNames.tinydate) {
-					return moment.default(date).format(TinyDateFMT);
-				}
-			}
-			return '';
+			return this._fixDateStr(value.v, this._type);
 		} else {
-			if (value && value.w) {
-				return value.w;
-			}
-			return '';
+			return value.w||'';
 		}
 	}
 
@@ -393,6 +362,38 @@ export class CTypeChecker
 			tt.next = typeNode;
 		}
 		return thisNode;
+	}
+
+	private _fixNumberStr(n: number|string, type: CType): string {
+		if (typeof n === 'number') {
+			let num = 0;
+			if (this._type.typename == ETypeNames.double || this._type.typename == ETypeNames.float) {
+				num = +n.toFixed(FractionDigitsFMT);
+			} else {
+				num = Math.floor(n);
+			}
+			if (num < 1) {
+				return num.toString().replace(/0\./g, '.');
+			}
+			return num.toString();
+		}
+		return n;
+	}
+
+	private _fixDateStr(date: any, type: CType): string {
+		if (CTypeChecker.IsDateType(date)) {
+			switch (this._type.typename) {
+				case ETypeNames.utctime:
+					return (Math.round(date.getTime() / 1000 + TimeZoneOffset)).toString();
+				case ETypeNames.timestamp:
+					return (Math.round(date.getTime() / 1000)).toString();
+				case ETypeNames.date:
+					return moment.default(date).format(DateFmt);
+				case ETypeNames.tinydate:
+					return moment.default(date).format(TinyDateFMT);
+			}
+		}
+		return '';
 	}
 
 	private _type:CType;
