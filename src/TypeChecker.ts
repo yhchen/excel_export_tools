@@ -42,11 +42,11 @@
  *      | json              | JSON.parse() is vaild                                 |
  *      -----------------------------------------------------------------------------
  */
-import { isArray, isObject, isNumber } from 'util';
+import { isArray, isObject, isNumber, isString } from 'util';
 import * as moment from 'moment';
 
 function NullStr(s: string) {
-	if (typeof s === "string") {
+	if (isString(s)) {
 		return s.trim().length <= 0;
 	}
 	return true;
@@ -202,12 +202,12 @@ export class CTypeChecker
 		return (data != undefined && moment.isDate(data));
 	}
 
-	public CheckCellVaildate(value: {w?:string, v?:string|number|boolean|Date}|undefined): boolean {
+	public CheckDataVaildate(value: {w?:string, v?:string|number|boolean|Date}|undefined): boolean {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) {
 			return true;
 		}
 		if (this._type.is_number) {
-			if (typeof value.v !== 'number') return false;
+			if (!isNumber(value.v)) return false;
 			return CheckNumberInRange(value.v, this._type);
 		} else if (this._type.type == EType.date) {
 			return CTypeChecker.IsDateType(value.v);
@@ -227,15 +227,46 @@ export class CTypeChecker
 		return true;
 	}
 
-	public ParseCellStr(value: {w?:string, v?:string|number|boolean|Date}|undefined): string {
+	public ParseDataStr(value: {w?:string, v?:string|number|boolean|Date}|undefined): string {
 		if (value == undefined) return '';
-		if (this._type.is_number) {
-			return this._fixNumberStr(<any>value.v||value.w||'', this._type);
-		} else if (BaseDateTypeSet.has(this._type.typename||'')) {
-			return this._fixDateStr(value.v, this._type);
-		} else {
-			return value.w||'';
+		switch (this._type.type) {
+			case EType.array:
+				{
+					if (!value.w) return '';
+					const tmpObj = JSON.parse(value.w);
+					if (!isArray(tmpObj)) throw `${value} is not a valid json type`;
+					if (this._type.next == undefined) throw `type array next is undefined`;
+					for (let i = 0; i < tmpObj.length; ++i) {
+						tmpObj[i] = CTypeChecker._ParseJsonTypeStr(tmpObj[i], this._type.next);
+					}
+					return JSON.stringify(tmpObj);
+				}
+				break;
+			case EType.object:
+				{
+					if (!value.w) return '';
+					const tmpObj = JSON.parse(value.w);
+					if (!isObject(tmpObj)) throw `${value} is not a valid json type`;
+					if (this._type.obj == undefined) return tmpObj;
+					for (let key in tmpObj) {
+						tmpObj[key] = CTypeChecker._ParseJsonTypeStr(tmpObj[key], this._type.obj[key]);
+					}
+					return JSON.stringify(tmpObj);
+				}
+				break;
+			case EType.base:
+				if (this._type.is_number) {
+					const num = CTypeChecker._fixNumberFmt(<any>value.v||value.w||'', this._type);
+					if (num > 0 && num < 1) {
+						return num.toString().replace(/0\./g, '.');
+					}
+					return num.toString();
+				}
+				break;
+			case EType.date:
+				return CTypeChecker._fixDateFmt(value.v, this._type).toString();
 		}
+		return value.w||'';
 	}
 
 	private CheckJsonType(tmpObj:any, type: CType|undefined) : boolean {
@@ -252,10 +283,10 @@ export class CTypeChecker
 			break;
 		case EType.base:
 			if (type.is_number) {
-				if (typeof tmpObj === 'number') {
+				if (isNumber(tmpObj)) {
 					return CheckNumberInRange(tmpObj, type);
 				}
-				else if (typeof tmpObj === 'string' && VaildNumber(tmpObj)) {
+				else if (isString(tmpObj) && VaildNumber(tmpObj)) {
 					return CheckNumberInRange(+tmpObj, type);
 				}
 				return false;
@@ -263,7 +294,7 @@ export class CTypeChecker
 			else if (type.typename == ETypeNames.json) {
 				return true;
 			}
-			return typeof tmpObj === 'string';
+			return isString(tmpObj);
 		case EType.date:
 			return moment.default(tmpObj).isValid();
 		case EType.object:
@@ -364,36 +395,75 @@ export class CTypeChecker
 		return thisNode;
 	}
 
-	private _fixNumberStr(n: number|string, type: CType): string {
-		if (typeof n === 'number') {
+	private static _ParseJsonTypeStr(value: any, type: CType|undefined): any {
+		if (type == undefined) return value;
+		switch (type.type) {
+			case EType.array:
+				{
+					if (!isArray(value)) throw `${value} is not a valid json type`;
+					if (type.next == undefined) throw `type array next is undefined`;
+					for (let i = 0; i < value.length; ++i) {
+						value[i] = this._ParseJsonTypeStr(value[i], type.next);
+					}
+				}
+				return value;
+			case EType.object:
+				{
+					if (!isObject(value)) throw `${value} is not a valid json type`;
+					if (type.obj == undefined) return value;
+					for (let key in value) {
+						value[key] = this._ParseJsonTypeStr(value[key], type.obj[key]);
+					}
+				}
+				return value;
+			case EType.base:
+				if (type.is_number) {
+					return CTypeChecker._fixNumberFmt(value, type);
+				}
+				return value||'';
+			case EType.date:
+				return CTypeChecker._fixDateFmt(value, type);
+		}
+		return value||'';
+	}
+
+	private static _fixNumberFmt(n: number|string, type: CType): number {
+		if (isNumber(n)) {
 			let num = 0;
-			if (this._type.typename == ETypeNames.double || this._type.typename == ETypeNames.float) {
+			if (type.typename == ETypeNames.double || type.typename == ETypeNames.float) {
 				num = +n.toFixed(FractionDigitsFMT);
 			} else {
 				num = Math.floor(n);
 			}
-			if (num < 1) {
-				return num.toString().replace(/0\./g, '.');
-			}
-			return num.toString();
+			// if (num < 1) {
+			// 	return num.toString().replace(/0\./g, '.');
+			// }
+			return num;
 		}
-		return n;
+		if (type.typename == ETypeNames.double || type.typename == ETypeNames.float) {
+			return CTypeChecker._fixNumberFmt(parseFloat(n), type);
+		}
+		return CTypeChecker._fixNumberFmt(parseInt(n), type);
 	}
 
-	private _fixDateStr(date: any, type: CType): string {
+	private static _fixDateFmt(date: any, type: CType): string|number {
 		if (CTypeChecker.IsDateType(date)) {
-			switch (this._type.typename) {
+			switch (type.typename) {
 				case ETypeNames.utctime:
-					return (Math.round(date.getTime() / 1000 + TimeZoneOffset)).toString();
+					return (Math.round(date.getTime() / 1000 + TimeZoneOffset));
 				case ETypeNames.timestamp:
-					return (Math.round(date.getTime() / 1000)).toString();
+					return (Math.round(date.getTime() / 1000));
 				case ETypeNames.date:
 					return moment.default(date).format(DateFmt);
 				case ETypeNames.tinydate:
 					return moment.default(date).format(TinyDateFMT);
 			}
+		} else if (isString(date)) {
+			const Date = moment.default(date);
+			if (!Date.isValid()) throw `[TypeChecker] Date Type "${date}" Invalid!`;
+			return CTypeChecker._fixDateFmt(Date.toDate(), type);
 		}
-		return '';
+		return date||'';
 	}
 
 	private _type:CType;

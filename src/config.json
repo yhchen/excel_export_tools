@@ -7,7 +7,8 @@
         "M姓名库.xlsx"
     ],
     "ExcludeCsvTableNames": [
-        "TestCase"
+        "<none>",
+        "Example"
     ],
     "Export": {
         "OutputDir": "./test/csv/",

@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as chalk from 'chalk';
 
 import {CTypeChecker,ETypeNames} from "./TypeChecker";
+import { isString } from 'util';
 
 /*************** console color ***************/
 const yellow_ul = chalk.default.yellow.underline;	//yellow under line
@@ -30,7 +31,7 @@ function exception(txt: string, ex?:any) {
 /************ console color end*************/
 
 function NullStr(s: string) {
-	if (typeof s === "string") {
+	if (isString(s)) {
 		return s.trim().length <= 0;
 	}
 	return true;
@@ -227,11 +228,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			const typeStr = col.id <= 1 ? cell.w.substr(1):cell.w;
 			try {
 				col.checker = new CTypeChecker(typeStr);
-				let v = cell.w.replace(/"/g, `""`);
-				if (v.indexOf(',') >= 0) {
-					v = '"' + v + '"';
-				}
-				tmpArry.push(`${v}`);
+				tmpArry.push(cell.w);
 			} catch (ex) {
 				new CTypeChecker(typeStr);
 				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column`
@@ -268,14 +265,14 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			}
 			const value = cell && cell.w ? cell.w : '';
 			if (gCfg.EnableTypeCheck) {
-				if (!col.checker.CheckCellVaildate(cell)) {
-					col.checker.CheckCellVaildate(cell);
+				if (!col.checker.CheckDataVaildate(cell)) {
+					col.checker.CheckDataVaildate(cell);
 					exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell `
 							+ `"${yellow_ul(col.sid+(rowIdx).toString())}" format not match "${yellow_ul(value)}" with ${yellow_ul(col.checker.s)}!`);
 					return;
 				}
 			}
-			tmpArry.push(col.checker.ParseCellStr(cell));
+			tmpArry.push(col.checker.ParseDataStr(cell));
 		}
 		if (!firstCol) {
 			csvcontent += ParseCSVLine(tmpArry);
