@@ -19,10 +19,10 @@
  *      |        string     | auto change 'line break' to '\n'                      |
  *      |        double     | ...                                                   |
  *      |        float      | ...                                                   |
- *      |        date       | yyyy/mm/dd HH:MM:ss    not support "Combination Type" |
- *      |        tinydate   | yyyy/mm/dd            not support "Combination Type"  |
- *      |        timestamp  | Linux time stamp        not support "Combination Type"|
- *      |        utctime    | UTC time stamp        not support "Combination Type"  |
+ *      |        date       | YYYY/MM/DD HH:mm:ss                                   |
+ *      |        tinydate   | YYYY/MM/DD                                            |
+ *      |        timestamp  | Linux time stamp                                      |
+ *      |        utctime    | UTC time stamp                                        |
  *      -----------------------------------------------------------------------------
  *
  *
@@ -44,7 +44,7 @@
  */
 import * as xlsx from 'xlsx';
 import { isArray, isObject, isNumber } from 'util';
-import * as dateformat from 'dateformat';
+import * as moment from 'moment';
 
 function NullStr(s: string) {
 	if (typeof s === "string") {
@@ -104,9 +104,9 @@ const BaseTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int',
 const BaseNumberTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ]);
 // date type
 const BaseDateTypeSet = new Set<string>([ 'date', 'tinydate', 'timestamp', 'utctime', ]);
-let DateFmt: string = 'yyyy/mm/dd HH:MM:ss';
+let DateFmt: string = 'YYYY/MM/DD HH:mm:ss';
 console.log(`[TypeCheck] : Default Date format is "${DateFmt}"`)
-let TinyDateFMT: string = 'yy/mm/dd';
+let TinyDateFMT: string = 'YYYY/MM/DD';
 console.log(`[TypeCheck] : Default Tiny Date format is "${TinyDateFMT}"`)
 const TimeZoneOffset = new Date().getTimezoneOffset() * 60;
 // number type range
@@ -152,6 +152,13 @@ enum EType {
 	object,
 	array,
 	base,
+	date,
+}
+
+enum EExcelCellValueType {
+	string,
+	number,
+	date,
 }
 
 const RangeMap = {
@@ -197,14 +204,18 @@ export class CTypeChecker
 	public static set TinyDateFmt(s: string) { TinyDateFMT = s; console.log(`[TypeCheck] : Change Tiny Date format to "${TinyDateFMT}"`); }
 	public static get TinyDateFmt(): string { return TinyDateFMT; }
 
-	public CheckValue(value: xlsx.CellObject|undefined): boolean {
+	public static IsDateType(data: any): boolean {
+		return (data != undefined && data.constructor != undefined && data.constructor.name === 'Date');
+	}
+
+	public CheckCellVaildate(value: xlsx.CellObject|undefined): boolean {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) {
 			return true;
 		}
 		if (this._type.is_number) {
 			if (typeof value.v !== 'number') return false;
 			return CheckNumberInRange(value.v, this._type);
-		} else if (BaseDateTypeSet.has(this._type.typename||'')) {
+		} else if (this._type.type == EType.date) {
 			return value.t === 'd';
 		} else {
 			if (this._type.typename == ETypeNames.string) {
@@ -227,7 +238,7 @@ export class CTypeChecker
 			if (value == undefined) return '';
 			if (typeof value.v === 'number') {
 				if (value.v < 1) {
-					return value.v.toString().replace(/0./g, '.');
+					return value.v.toString().replace(/0\./g, '.');
 				}
 				return value.v.toString();
 			}
@@ -244,9 +255,9 @@ export class CTypeChecker
 				} else if (this._type.typename === ETypeNames.timestamp) {
 					return (Math.round(date.getTime() / 1000)).toString();
 				} else if (this._type.typename === ETypeNames.date) {
-					return dateformat.default(date, DateFmt);
+					return moment.default(date).format(DateFmt);
 				} else if (this._type.typename === ETypeNames.tinydate) {
-					return dateformat.default(date, TinyDateFMT);
+					return moment.default(date).format(TinyDateFMT);
 				}
 			}
 			return '';
@@ -284,7 +295,18 @@ export class CTypeChecker
 				return true;
 			}
 			return typeof tmpObj === 'string';
-			break;
+		case EType.date:
+			if (type.typename == undefined) return false;
+			if (type.typename == ETypeNames.date) {
+				return moment.default(tmpObj, DateFmt).isValid();
+			} else if (type.typename == ETypeNames.tinydate) {
+				return moment.default(tmpObj, TinyDateFMT).isValid();
+			} else if (type.typename == ETypeNames.timestamp) {
+				return moment.default(tmpObj, 'X').isValid();
+			} else if (type.typename == ETypeNames.utctime) {
+				return moment.utc(tmpObj, 'X').isValid();
+			}
+			return false;
 		case EType.object:
 			if (!isObject(tmpObj)) return false;
 			if (!type.obj) return false;
