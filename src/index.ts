@@ -1,7 +1,7 @@
 import * as xlsx from 'xlsx';
 
 import gCfg from "./config.json";
-import * as fs from 'fs';
+import * as fs from 'fs-extra-promise';
 import * as path from 'path';
 import * as chalk from 'chalk';
 
@@ -20,7 +20,9 @@ function logger(debugMode: boolean, ...args: any[]) {
 	console.log(...args);
 }
 function trace(...args: any[]) { logger(true, ...args); }
+let ExceptionLog = '';
 function exception(txt: string, ex?:any) {
+	ExceptionLog += `${red(`+ [ERROR] `)} ${txt}\n`
 	logger(false, red(`[ERROR] `) + txt);
 	if (ex) { logger(false, red(ex)); }
 	throw txt;
@@ -55,15 +57,15 @@ function ParseCSVLine(arry: Array<string>): string {
 	return arry.join(',').replace(/\n/g, '\\n').replace(/\r/g, '') + gCfg.LineBreak;
 }
 
-function HandleDir(dirName: string): void {
-	var pa = fs.readdirSync(dirName);
-	pa.forEach(function(fileName,index){
+async function HandleDir(dirName: string): Promise<void> {
+	let pa = await fs.readdirAsync(dirName);
+	pa.forEach(async function(fileName, index){
 		const filePath = path.join(dirName, fileName);
-		var info = fs.statSync(filePath);
+		let info = await fs.statAsync(filePath);
 		if(!info.isFile()) {
 			return;
 		}
-		HandleExcelFile(filePath);
+		await HandleExcelFile(filePath);
 	});
 }
 
@@ -265,9 +267,10 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			}
 			const value = cell && cell.w ? cell.w : '';
 			if (gCfg.EnableTypeCheck) {
-				if (!col.checker.CheckValue(cell)) {
-					col.checker.CheckValue(cell);
-					exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell "${yellow_ul(col.sid+(rowIdx).toString())}" format not match "${yellow_ul(value)}" with ${yellow_ul(col.checker.s)}!`);
+				if (!col.checker.CheckCellVaildate(cell)) {
+					col.checker.CheckCellVaildate(cell);
+					exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell `
+							+ `"${yellow_ul(col.sid+(rowIdx).toString())}" format not match "${yellow_ul(value)}" with ${yellow_ul(col.checker.s)}!`);
 					return;
 				}
 			}
@@ -295,6 +298,7 @@ async function HandleExcelFile(fileName: string) {
 		return;
 	}
 	let opt:xlsx.ParsingOptions = {
+		type: "buffer",
 		// codepage: 0,//If specified, use code page when appropriate **
 		cellFormula: false,//Save formulae to the .f field
 		cellHTML: false,//Parse rich text and save HTML to the .h field
@@ -311,7 +315,8 @@ async function HandleExcelFile(fileName: string) {
 		dateNF: 'yyyy/mm/dd',
 		WTF: true,//If true, throw errors on unexpected file features **
 	};
-	const excel = xlsx.readFile(fileName, opt);
+	const filebuffer = await fs.readFileAsync(fileName);
+	const excel = xlsx.read(filebuffer, opt);
 	if (excel == null) {
 		exception(`excel ${yellow_ul(fileName)} open failure.`);
 	}
@@ -325,8 +330,7 @@ async function HandleExcelFile(fileName: string) {
 	}
 }
 
-function main() {
-	const StartTimer = Date.now();
+async function execute() {
 	if (!fs.existsSync(gCfg.Export.OutputDir)) {
 		fs.mkdirSync(gCfg.Export.OutputDir);
 	}
@@ -339,19 +343,37 @@ function main() {
 			continue;
 		}
 		if (fs.statSync(fileOrPath).isDirectory()) {
-			HandleDir(fileOrPath);
+			await HandleDir(fileOrPath);
 		} else if (fs.statSync(fileOrPath).isFile()) {
-			HandleExcelFile(fileOrPath);
+			await HandleExcelFile(fileOrPath);
 		} else {
 			exception(`UnHandle file or directory type : "${yellow_ul(fileOrPath)}"`);
 		}
 	}
-
-	logger(false, `Total Use Tick : "${yellow_ul((Date.now() - StartTimer).toString())}"`);
-	logger(false, yellow("----------------------------------------"));
-	logger(false, yellow("-            DONE WITH ALL             -"));
-	logger(false, yellow("----------------------------------------"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-main()
+function main() {
+	const StartTimer = Date.now();
+	try {
+		execute()
+	} catch (ex) {
+		exception(ex);
+	}
+	process.addListener('beforeExit', ()=>{
+		process.removeAllListeners('beforeExit');
+		const color = NullStr(ExceptionLog) ? green : yellow;
+		logger(false, color("----------------------------------------"));
+		logger(false, color("-            DONE WITH ALL             -"));
+		logger(false, color("----------------------------------------"));
+		logger(false, `Total Use Tick : "${yellow_ul((Date.now() - StartTimer).toString())}"`);
+
+		if (!NullStr(ExceptionLog)) {
+			logger(false, red("Exception Logs:"));
+			logger(false, ExceptionLog);
+		}
+	})
+}
+
+// main entry
+main();

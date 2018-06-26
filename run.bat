@@ -33,7 +33,7 @@ if not EXIST node_modules (
 if not "%1" == "0" (
 	echo ======================================================
 	echo = tsc compile
-	call tsc -p .
+	call tsc -p .\tsconfig.json
 
 	echo ======================================================
 	echo = execute build config files

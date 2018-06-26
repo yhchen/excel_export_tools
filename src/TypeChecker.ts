@@ -387,7 +387,7 @@ export class CTypeChecker
 				prevNode.next = thisNode;
 				thisNode = prevNode;
 			} else {
-				thisNode = {type:EType.base, typename:typename, is_number:BaseNumberTypeSet.has(typename)};
+				thisNode = {type: BaseDateTypeSet.has(typename)?EType.date:EType.base, typename:typename, is_number:BaseNumberTypeSet.has(typename)};
 			}
 			p.i = typescope.end+1;
 		}

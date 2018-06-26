@@ -10,6 +10,13 @@ if [ ! $? -eq 0 ]; then
 fi
 echo = node version is :`node -v`
 
+if [ ! -d "./node_modules" ]; then
+	echo = package.json not init! run npm install...
+	ECHO_SPEED_UP_HELP
+
+	npm install
+fi
+
 echo ======================================================
 echo = check command typescript
 type tsc &> /dev/null
@@ -21,14 +28,12 @@ if [ ! $? -eq 0 ]; then
 fi
 echo = typescript version is :`tsc -v`
 
-if [ ! -d "./node_modules" ]; then
-	echo = package.json not init! run npm install...
-	ECHO_SPEED_UP_HELP
-
-	npm install
-fi
 
 if [ ! "$1" == "0" ]; then
+	echo ======================================================
+	echo = tsc compile
+	tsc -p ./tsconfig.json
+
 	echo ======================================================
 	echo = execute build config files
 	node ./bin/index.js
