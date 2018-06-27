@@ -5,18 +5,13 @@
     "ExcludeFileNames": [
         "Exclude.xlsx"
     ],
-    "ExcludeCsvTableNames": [
+    "ExcludeSheetNames": [
         "<none>"
     ],
     "Export": {
-        "OutputDir": "./test/csv/",
-        "EnableHeader": true,
-        "-comment": [
-            "static-ts-node   : static code using typescript using by nodejs",
-            "static-ts-client : static code using typescript using by web browser",
-            "cpp-headers      : static header code."
-        ],
-        "HeaderType": "static-ts-node"
+        "<type> can be [csv|json|js|ts|lua].": false,
+        "type": "csv",
+        "OutputDir": "./test/csv/"
     },
     "CSVNameCellID": "B1",
     "see: http://momentjs.cn/docs/#/parsing/string-format/": false,

@@ -1,63 +1,28 @@
 import * as xlsx from 'xlsx';
-
-import gCfg from "./config.json";
 import * as fs from 'fs-extra-promise';
 import * as path from 'path';
-import * as chalk from 'chalk';
 
+import * as utils from './utils'
+import gCfg from "./config.json";
 import {CTypeChecker,ETypeNames} from "./TypeChecker";
-import { isString } from 'util';
+import { DH_UNABLE_TO_CHECK_GENERATOR } from 'constants';
 
-/*************** console color ***************/
-const yellow_ul = chalk.default.yellow.underline;	//yellow under line
-const yellow = chalk.default.yellow;
-const red = chalk.default.redBright;
-const green = chalk.default.greenBright;
-const brightWhite = chalk.default.whiteBright.bold
-function logger(debugMode: boolean, ...args: any[]) {
-	if (!gCfg.EnableDebugOutput && debugMode) {
-		return;
-	}
-	console.log(...args);
-}
-function trace(...args: any[]) { logger(true, ...args); }
-let ExceptionLog = '';
-function exception(txt: string, ex?:any) {
-	ExceptionLog += `${red(`+ [ERROR] `)} ${txt}\n`
-	logger(false, red(`[ERROR] `) + txt);
-	if (ex) { logger(false, red(ex)); }
-	throw txt;
-}
-/************ console color end*************/
-
-function NullStr(s: string) {
-	if (isString(s)) {
-		return s.trim().length <= 0;
-	}
-	return true;
+utils.SetEnableDebugOutput(gCfg.EnableDebugOutput);
+utils.SetLineBreaker(gCfg.LineBreak);
+let gExportWrapper: utils.IExportWrapper;
+switch (gCfg.Export.type) {
+	case 'csv':		gExportWrapper = require('./export/export_to_csv')();			break;
+	case 'js':
+	case 'json':
+	case "ts":
+	case "lua":
+	default:		utils.exception(utils.red(`Export is not currently supported for the current type	${utils.yellow_ul(gCfg)}!`));				break;
 }
 
 const gRootDir = process.cwd();
 CTypeChecker.DateFmt = gCfg.DateFmt;
 CTypeChecker.TinyDateFmt = gCfg.TinyDateFmt;
 CTypeChecker.FractionDigitsFMT = gCfg.FractionDigitsFMT;
-
-function ParseCSVLine(arry: Array<string>): string {
-	for (let i = 0; i < arry.length; ++i) {
-		let value = arry[i];
-		if (value == null) {
-			value = '';
-		} else {
-			if (value.indexOf(',') < 0 && value.indexOf('"') < 0) {
-				value = value.replace(/"/g, `""`);
-			} else {
-				value = `"${value.replace(/"/g, `""`)}"`;
-			}
-		}
-		arry[i] = value;
-	}
-	return arry.join(',').replace(/\n/g, '\\n').replace(/\r/g, '') + gCfg.LineBreak;
-}
 
 async function HandleDir(dirName: string): Promise<void> {
 	let pa = await fs.readdirAsync(dirName);
@@ -121,17 +86,15 @@ function GetCellData(worksheet: xlsx.WorkSheet, column: string, row: number): xl
 	return worksheet[column + row.toString()];
 }
 
-function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.WorkSheet): void{
-	const StartTick = Date.now();
-
+function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.WorkSheet): utils.DataTable|undefined {
 	// find csv name
-	if (worksheet[gCfg.CSVNameCellID] == undefined || NullStr(worksheet[gCfg.CSVNameCellID].w)) {
-		logger(false, `excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV name not defined. Ignore it!`);
+	if (worksheet[gCfg.CSVNameCellID] == undefined || utils.NullStr(worksheet[gCfg.CSVNameCellID].w)) {
+		utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV name not defined. Ignore it!`);
 		return;
 	}
 	const CSVName = worksheet[gCfg.CSVNameCellID].w;
-	if (gCfg.ExcludeCsvTableNames.indexOf(CSVName) >= 0) {
-		logger(true, `- Pass CSV "${CSVName}"`);
+	if (gCfg.ExcludeSheetNames.indexOf(CSVName) >= 0) {
+		utils.logger(true, `- Pass CSV "${CSVName}"`);
 		return;
 	}
 
@@ -142,76 +105,75 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 	{
 		const REF = worksheet["!ref"];
 		if (!REF) {
-			logger(false, `excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" IS EMPTY. Ignore it!`);
+			utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" IS EMPTY. Ignore it!`);
 			return;
 		}
 		let SPREF = REF.split(":");
 		if (SPREF.length != 2) {
-			logger(false, `excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" [!ref] = "${REF}" format error!!`);
+			utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" [!ref] = "${REF}" format error!!`);
 			return;
 		}
 		ColumnMax = SPREF[1].toUpperCase().replace(/([0-9]*)/g, '');
 		RowMax = parseInt(SPREF[1].toUpperCase().replace(/([A-Z]*)/g, ''));
 	}
 	let rowIdx = 2;
-	let csvcontent = '';
 	let columnIdx = new XlsColumnIter(ColumnMax);
-	let tmpArry: string[] = [];
+	let DataTable = { name:CSVName, datas:new Array<Array<string>>() };
 	// find column name
 	for (; rowIdx <= RowMax; ++rowIdx) {
 		const firstCell = GetCellData(worksheet, 'A', rowIdx);
-		if (firstCell == undefined || firstCell.w == undefined || NullStr(firstCell.w)) {
+		if (firstCell == undefined || firstCell.w == undefined || utils.NullStr(firstCell.w)) {
 			continue;
 		}
 		if (firstCell.w[0] == '#') {
 			if (gCfg.EnableExportCommentRows) {
 				columnIdx.seekToBegin();
-				tmpArry = [];
+				const tmpArry = [];
 				do {
 					const cell = GetCellData(worksheet, columnIdx.curr26, rowIdx);
 					tmpArry.push((cell && cell.w)?cell.w:'');
 				}while(columnIdx.next);
-				csvcontent += ParseCSVLine(tmpArry);
+				DataTable.datas.push(tmpArry);
 			}
 			continue;
 		}
 		columnIdx.seekToBegin();
-		tmpArry = [];
+		const tmpArry = [];
 		do {
 			const colName = columnIdx.curr26;
 			const cell = GetCellData(worksheet, colName, rowIdx);
-			if (cell == undefined || cell.w == undefined || NullStr(cell.w) || (gCfg.EnableExportCommentColumns == false && cell.w[0] == '#')) {
+			if (cell == undefined || cell.w == undefined || utils.NullStr(cell.w) || (gCfg.EnableExportCommentColumns == false && cell.w[0] == '#')) {
 				continue;
 			}
 			ColumnArry.push({id:columnIdx.curr10, sid:colName, name:cell.w, checker:(cell.w[0] == '#')?new CTypeChecker(ETypeNames.string):<any>undefined});
 			tmpArry.push(cell.w);
 		}while(columnIdx.next);
+		DataTable.datas.push(tmpArry);
 		++rowIdx;
 		break;
 	}
-	csvcontent += ParseCSVLine(tmpArry);
 	// find type
 	for (; rowIdx <= RowMax; ++rowIdx) {
 		const firstCell = GetCellData(worksheet, ColumnArry[0].sid, rowIdx);
-		if (firstCell == undefined || firstCell.w == undefined || NullStr(firstCell.w)) {
+		if (firstCell == undefined || firstCell.w == undefined || utils.NullStr(firstCell.w)) {
 			continue;
 		}
 		if (firstCell.w[0] == '#') {
 			if (gCfg.EnableExportCommentRows) {
-				tmpArry = [];
+				const tmpArry = [];
 				for (let col of ColumnArry) {
 					const cell = GetCellData(worksheet, col.sid, rowIdx);
 					tmpArry.push((cell && cell.w)?cell.w:'');
 				}
-				csvcontent += ParseCSVLine(tmpArry);
+				DataTable.datas.push(tmpArry);
 			}
 			continue;
 		}
 
 		if (firstCell.w[0] != '*') {
-			exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column not found!`);
+			utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Type Column not found!`);
 		}
-		tmpArry = [];
+		const tmpArry = [];
 		for (const col of ColumnArry) {
 			// continue...
 			const cell = GetCellData(worksheet, col.sid, rowIdx);
@@ -222,7 +184,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				continue;
 			}
 			if (cell == undefined || cell.w == undefined) {
-				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column "${yellow_ul(col.name)}" not found!`);
+				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Type Column "${utils.yellow_ul(col.name)}" not found!`);
 				return;
 			}
 			const typeStr = col.id <= 1 ? cell.w.substr(1):cell.w;
@@ -231,33 +193,33 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				tmpArry.push(cell.w);
 			} catch (ex) {
 				new CTypeChecker(typeStr);
-				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Type Column`
-						+ ` "${yellow_ul(col.name)}" format error "${yellow_ul(cell.w)}". expect is "${yellow_ul(typeStr)}"!`, ex);
+				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Type Column`
+						+ ` "${utils.yellow_ul(col.name)}" format error "${utils.yellow_ul(cell.w)}". expect is "${utils.yellow_ul(typeStr)}"!`, ex);
 			}
 		}
+		DataTable.datas.push(tmpArry);
 		++rowIdx;
 		break;
 	}
-	csvcontent += ParseCSVLine(tmpArry);
 
 	// handle datas
 	for (; rowIdx <= RowMax; ++rowIdx) {
 		let firstCol = true;
-		tmpArry = [];
+		const tmpArry = [];
 		for (let col of ColumnArry) {
 			const cell = GetCellData(worksheet, col.sid, rowIdx);
 			if (firstCol) {
-				if (cell == undefined || cell.w == undefined || NullStr(cell.w)) {
+				if (cell == undefined || cell.w == undefined || utils.NullStr(cell.w)) {
 					break;
 				}
 				else if (cell.w[0] == '#') {
 					if (gCfg.EnableExportCommentRows) {
-						tmpArry = [];
+						const tmpArry = [];
 						for (let col of ColumnArry) {
 							const cell = GetCellData(worksheet, col.sid, rowIdx);
 							tmpArry.push((cell && cell.w)?cell.w:'');
 						}
-						csvcontent += ParseCSVLine(tmpArry);
+						DataTable.datas.push(tmpArry);
 					}
 					break;
 				}
@@ -267,8 +229,8 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			if (gCfg.EnableTypeCheck) {
 				if (!col.checker.CheckDataVaildate(cell)) {
 					col.checker.CheckDataVaildate(cell);
-					exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell `
-							+ `"${yellow_ul(col.sid+(rowIdx).toString())}" format not match "${yellow_ul(value)}" with ${yellow_ul(col.checker.s)}!`);
+					utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Cell `
+							+ `"${utils.yellow_ul(col.sid+(rowIdx).toString())}" format not match "${utils.yellow_ul(value)}" with ${utils.yellow_ul(col.checker.s)}!`);
 					return;
 				}
 			}
@@ -276,17 +238,16 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				tmpArry.push(col.checker.ParseDataStr(cell));
 			} catch (ex) {
 				// col.checker.ParseDataStr(cell);
-				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell "${yellow_ul(col.sid+(rowIdx).toString())}" `
-						+ `Parse Data "${yellow_ul(value)}" With ${yellow_ul(col.checker.s)} Cause Exception "${red(ex)}"!`);
+				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Cell "${utils.yellow_ul(col.sid+(rowIdx).toString())}" `
+						+ `Parse Data "${utils.yellow_ul(value)}" With ${utils.yellow_ul(col.checker.s)} Cause utils.exception "${utils.red(ex)}"!`);
 				return;
 			}
 		}
 		if (!firstCol) {
-			csvcontent += ParseCSVLine(tmpArry);
+			DataTable.datas.push(tmpArry);
 		}
 	}
-	fs.writeFileSync(path.join(gCfg.Export.OutputDir, CSVName+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
-	logger(false, `${green('[SUCCESS]')} Output file "${yellow_ul(path.join(gCfg.Export.OutputDir, CSVName+'.csv'))}". Total use tick:${green((Date.now() - StartTick).toString())}`);
+	return DataTable;
 }
 
 async function HandleExcelFile(fileName: string) {
@@ -295,11 +256,11 @@ async function HandleExcelFile(fileName: string) {
 		return;
 	}
 	if (gCfg.ExcludeFileNames.indexOf(path.basename(fileName)) >= 0) {
-		logger(true, `- Pass File "${fileName}"`);
+		utils.logger(true, `- Pass File "${fileName}"`);
 		return;
 	}
 	if (path.basename(fileName).indexOf(`~$`) == 0) {
-		logger(true, `- Pass File "${fileName}"`);
+		utils.logger(true, `- Pass File "${fileName}"`);
 		return;
 	}
 	let opt:xlsx.ParsingOptions = {
@@ -323,15 +284,19 @@ async function HandleExcelFile(fileName: string) {
 	const filebuffer = await fs.readFileAsync(fileName);
 	const excel = xlsx.read(filebuffer, opt);
 	if (excel == null) {
-		exception(`excel ${yellow_ul(fileName)} open failure.`);
+		utils.exception(`excel ${utils.yellow_ul(fileName)} open failure.`);
 	}
 	if (excel.Sheets == null) {
 		return;
 	}
 	for (let sheetName of excel.SheetNames) {
-		logger(true, `handle excel "${brightWhite(fileName)}" sheet "${yellow_ul(sheetName)}"`);
+		utils.logger(true, `handle excel "${utils.brightWhite(fileName)}" sheet "${utils.yellow_ul(sheetName)}"`);
 		const worksheet = excel.Sheets[sheetName];
-		HandleWorkSheet(fileName, sheetName, worksheet);
+		const datatable = HandleWorkSheet(fileName, sheetName, worksheet);
+		if (datatable) {
+			utils.ExportExcelDataMap.set(datatable.name, datatable);
+			gExportWrapper.exportTo(datatable, gCfg.Export.OutputDir);
+		}
 	}
 }
 
@@ -344,7 +309,7 @@ async function execute() {
 			fileOrPath = path.join(gRootDir, fileOrPath);
 		}
 		if (!fs.existsSync(fileOrPath)) {
-			logger(false, `file or directory "${yellow_ul(fileOrPath)}" not found!`);
+			utils.logger(false, `file or directory "${utils.yellow_ul(fileOrPath)}" not found!`);
 			continue;
 		}
 		if (fs.statSync(fileOrPath).isDirectory()) {
@@ -352,35 +317,18 @@ async function execute() {
 		} else if (fs.statSync(fileOrPath).isFile()) {
 			await HandleExcelFile(fileOrPath);
 		} else {
-			exception(`UnHandle file or directory type : "${yellow_ul(fileOrPath)}"`);
+			utils.exception(`UnHandle file or directory type : "${utils.yellow_ul(fileOrPath)}"`);
 		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 function main() {
-	const StartTimer = Date.now();
 	try {
 		execute()
 	} catch (ex) {
-		exception(ex);
+		utils.exception(ex);
 	}
-	process.addListener('beforeExit', ()=>{
-		process.removeAllListeners('beforeExit');
-		const color = NullStr(ExceptionLog) ? green : yellow;
-		logger(false, color("----------------------------------------"));
-		logger(false, color("-            DONE WITH ALL             -"));
-		logger(false, color("----------------------------------------"));
-		logger(false, `Total Use Tick : "${yellow_ul((Date.now() - StartTimer).toString())}"`);
-
-		if (!NullStr(ExceptionLog)) {
-			logger(false, red("Exception Logs:"));
-			logger(false, ExceptionLog);
-			process.exit(-1);
-		} else {
-			process.exit(0);
-		}
-	})
 }
 
 // main entry
