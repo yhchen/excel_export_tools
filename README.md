@@ -18,8 +18,8 @@ How To Use:
 
 
 Support Format Check:
+---
 ```
-Support Format Check:
      Using typescript type define link grammar.
      Extends number type for digital size limit check.
      Add common types of game development(like vector2 vector3...);
