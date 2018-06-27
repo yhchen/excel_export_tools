@@ -2,7 +2,7 @@ import * as utils from "../utils";
 import * as fs from "fs-extra-promise";
 import * as path from 'path';
 
-function ParseCSVLine(arry: Array<string>, ): string {
+function ParseCSVLine(arry: Array<string>): string {
 	for (let i = 0; i < arry.length; ++i) {
 		let value = arry[i];
 		if (value == null) {
