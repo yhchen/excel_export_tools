@@ -3,12 +3,10 @@
         "./test/excel"
     ],
     "ExcludeFileNames": [
-        "C充值.xlsx",
-        "M姓名库.xlsx"
+        "Exclude.xlsx"
     ],
     "ExcludeCsvTableNames": [
-        "<none>",
-        "Example"
+        "<none>"
     ],
     "Export": {
         "OutputDir": "./test/csv/",

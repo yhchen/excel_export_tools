@@ -27,7 +27,6 @@
  *
  *
  * Combination Type:
- *
  *      -----------------------------------------------------------------------------
  *      | {<name>:<type>}   | start with '{' and end with '}' with json format.     |
  *      |                   | <type> is one of "Base Type" or "Combination Type".   |
