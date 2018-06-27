@@ -272,7 +272,14 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 					return;
 				}
 			}
-			tmpArry.push(col.checker.ParseDataStr(cell));
+			try {
+				tmpArry.push(col.checker.ParseDataStr(cell));
+			} catch (ex) {
+				// col.checker.ParseDataStr(cell);
+				exception(`excel file "${yellow_ul(fileName)}" sheet "${yellow_ul(sheetName)}" CSV Cell "${yellow_ul(col.sid+(rowIdx).toString())}" `
+						+ `Parse Data "${yellow_ul(value)}" With ${yellow_ul(col.checker.s)} Cause Exception "${red(ex)}"!`);
+				return;
+			}
 		}
 		if (!firstCol) {
 			csvcontent += ParseCSVLine(tmpArry);

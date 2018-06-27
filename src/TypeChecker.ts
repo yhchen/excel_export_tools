@@ -231,7 +231,7 @@ export class CTypeChecker
 		switch (this._type.type) {
 			case EType.array:
 				{
-					if (!value.w) return '';
+					if (!value.w || NullStr(value.w)) return '';
 					const tmpObj = JSON.parse(value.w);
 					if (!isArray(tmpObj)) throw `${value} is not a valid json type`;
 					if (this._type.next == undefined) throw `type array next is undefined`;
