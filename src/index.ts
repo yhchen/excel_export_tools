@@ -5,18 +5,12 @@ import * as path from 'path';
 import * as utils from './utils'
 import gCfg from "./config.json";
 import {CTypeChecker,ETypeNames} from "./TypeChecker";
-import { DH_UNABLE_TO_CHECK_GENERATOR } from 'constants';
 
 utils.SetEnableDebugOutput(gCfg.EnableDebugOutput);
 utils.SetLineBreaker(gCfg.LineBreak);
-let gExportWrapper: utils.IExportWrapper;
-switch (gCfg.Export.type) {
-	case 'csv':		gExportWrapper = require('./export/export_to_csv')();			break;
-	case 'js':
-	case 'json':
-	case "ts":
-	case "lua":
-	default:		utils.exception(utils.red(`Export is not currently supported for the current type	${utils.yellow_ul(gCfg)}!`));				break;
+const gExportWrapper: utils.IExportWrapper = <utils.IExportWrapper>utils.ExportWrapperMap.get(gCfg.Export.type);
+if (gExportWrapper == undefined) {
+	utils.exception(utils.red(`Export is not currently supported for the current type "${utils.yellow_ul(gCfg.Export.type)}"!`));
 }
 
 const gRootDir = process.cwd();

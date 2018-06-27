@@ -22,7 +22,7 @@ export function logger(debugMode: boolean, ...args: any[]) {
 }
 function trace(...args: any[]) { logger(true, ...args); }
 let ExceptionLog = '';
-export function exception(txt: string, ex?:any) {
+export function exception(txt: string, ex?:any): never {
 	ExceptionLog += `${red(`+ [ERROR] `)} ${txt}\n`
 	logger(false, red(`[ERROR] `) + txt);
 	if (ex) { logger(false, red(ex)); }
@@ -76,6 +76,8 @@ export module TimeUsed
 	});
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Datas ...
 // excel gen data table
 export type DataTable = {
 	name: string,
@@ -87,7 +89,12 @@ export const ExportExcelDataMap = new Map<string, DataTable>();
 // line breaker
 export let LineBreaker = '\n';
 export function SetLineBreaker(v: string) { LineBreaker = v; }
+
+////////////////////////////////////////////////////////////////////////////////
 // export template
 export abstract class IExportWrapper {
 	public abstract async exportTo(dt: DataTable, outdir: string): Promise<boolean>;
 }
+export const ExportWrapperMap = new Map<string, IExportWrapper>([
+	['csv', require('./export/export_to_csv')()],
+]);
