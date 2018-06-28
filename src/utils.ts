@@ -1,9 +1,10 @@
 export { isString, isNumber, isArray, isObject, isBoolean, isDate } from 'util';
-import { isString, isNumber, isArray, isObject, isBoolean, isDate } from 'util';
+import { isString } from 'util';
 
 ////////////////////////////////////////////////////////////////////////////////
 /*************** console color ***************/
 import * as chalk from 'chalk';
+import { CTypeChecker } from './TypeChecker';
 export const yellow_ul = chalk.default.yellow.underline;	//yellow under line
 export const yellow = chalk.default.yellow;
 export const red = chalk.default.redBright;
@@ -79,21 +80,48 @@ export module TimeUsed
 ////////////////////////////////////////////////////////////////////////////////
 // Datas ...
 // excel gen data table
-export type DataTable = {
-	name: string,
-	datas: Array<Array<string>>;
+export enum ESheetRowType {
+	header = 1,
+	type = 2,
+	data = 3,
+	comment = 4,
+}
+export type SheetRow = {
+	type: ESheetRowType,
+	values: Array<any>,
+}
+export type SheetHeader = {
+	name: string, // name
+	stype: string, // type string
+	typeChecker: CTypeChecker, // type checker
+	comment: boolean; // is comment line?
+}
+export class SheetDataTable {
+	constructor(name: string) {
+		this.name = name;
+		this.headerLst = new Array();
+		this.values = new Array();
+	}
+	public name: string;
+	public headerLst: Array<SheetHeader>;
+	public values: Array<SheetRow>;
 }
 // all export data here
-export const ExportExcelDataMap = new Map<string, DataTable>();
+export const ExportExcelDataMap = new Map<string, SheetDataTable>();
 
 // line breaker
 export let LineBreaker = '\n';
 export function SetLineBreaker(v: string) { LineBreaker = v; }
 
 ////////////////////////////////////////////////////////////////////////////////
+// export config
+export type ExportCfg = {
+	EnableExportCommentColumns: boolean;
+	EnableExportCommentRows: boolean;
+}
 // export template
 export abstract class IExportWrapper {
-	public abstract async exportTo(dt: DataTable, outdir: string): Promise<boolean>;
+	public abstract async exportTo(dt: SheetDataTable, outdir: string, cfg: ExportCfg): Promise<boolean>;
 }
 export const ExportWrapperMap = new Map<string, IExportWrapper>([
 	['csv', require('./export/export_to_csv')()],

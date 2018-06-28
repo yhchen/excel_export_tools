@@ -9,7 +9,7 @@ if (process.argv.length >= 3 && fs.existsSync(process.argv[2])) {
 	gCfg = JSON.parse(<string>fs.readFileSync(process.argv[2], { encoding: 'utf8' }));
 	function check(cfg: any, tpl: any):void{
 		for (let key in tpl) {
-			if (typeof cfg[key] !== typeof tpl[key]) {
+			if (tpl[key] != null && typeof cfg[key] !== typeof tpl[key]) {
 				throw utils.red(`configure format error. key "${utils.yellow(key)}" not found!`);
 			}
 			if (utils.isObject(typeof tpl[key])) {
@@ -50,7 +50,7 @@ function GetCellData(worksheet: xlsx.WorkSheet, c: number, r: number): xlsx.Cell
 	return worksheet[cell];
 }
 
-function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.WorkSheet): utils.DataTable|undefined {
+function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.WorkSheet): utils.SheetDataTable|undefined {
 	// find csv name
 	if (worksheet[gCfg.CSVNameCellID] == undefined || utils.NullStr(worksheet[gCfg.CSVNameCellID].w)) {
 		utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV name not defined. Ignore it!`);
@@ -65,10 +65,10 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 	const Range = xlsx.utils.decode_range(<string>worksheet["!ref"]);
 	const ColumnMax = Range.e.c;
 	const RowMax = Range.e.r;
-	let ColumnArry = new Array<{cIdx:number, name:string, checker:CTypeChecker}>();
+	const ColumnArry = new Array<{cIdx:number, name:string, checker:CTypeChecker}>();
 	// find max column and rows
 	let rIdx = 1;
-	let DataTable = { name:TableName, datas:new Array<Array<string>>() };
+	const DataTable = new utils.SheetDataTable(TableName);
 	// find column name
 	for (; rIdx <= RowMax; ++rIdx) {
 		const firstCell = GetCellData(worksheet, 0, rIdx);
@@ -78,16 +78,16 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		if (firstCell.w[0] == '#') {
 			if (gCfg.EnableExportCommentRows) {
 				const tmpArry = [];
-				for (let cIdx = 0; cIdx < ColumnMax; ++cIdx) {
+				for (let cIdx = 0; cIdx <= ColumnMax; ++cIdx) {
 					const cell = GetCellData(worksheet, cIdx, rIdx);
 					tmpArry.push((cell && cell.w)?cell.w:'');
 				}
-				DataTable.datas.push(tmpArry);
+				DataTable.values.push({type:utils.ESheetRowType.comment, values: tmpArry})
 			}
 			continue;
 		}
 		const tmpArry = [];
-		for (let cIdx = 0; cIdx < ColumnMax; ++cIdx) {
+		for (let cIdx = 0; cIdx <= ColumnMax; ++cIdx) {
 			const cell = GetCellData(worksheet, cIdx, rIdx);
 			if (cell == undefined || cell.w == undefined || utils.NullStr(cell.w) || (gCfg.EnableExportCommentColumns == false && cell.w[0] == '#')) {
 				continue;
@@ -95,7 +95,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			ColumnArry.push({cIdx, name:cell.w, checker:(cell.w[0] == '#')?new CTypeChecker(ETypeNames.string):<any>undefined});
 			tmpArry.push(cell.w);
 		}
-		DataTable.datas.push(tmpArry);
+		DataTable.values.push({type:utils.ESheetRowType.header, values: tmpArry});
 		++rIdx;
 		break;
 	}
@@ -112,7 +112,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 					const cell = GetCellData(worksheet, col.cIdx, rIdx);
 					tmpArry.push((cell && cell.w)?cell.w:'');
 				}
-				DataTable.datas.push(tmpArry);
+				DataTable.values.push({type:utils.ESheetRowType.comment, values: tmpArry});
 			}
 			continue;
 		}
@@ -121,12 +121,15 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Type Column not found!`);
 		}
 		const tmpArry = [];
+		let typeHeader = new Array<utils.SheetHeader>();
 		for (const col of ColumnArry) {
 			// continue...
 			const cell = GetCellData(worksheet, col.cIdx, rIdx);
 			if (col.checker != undefined) {
 				if (gCfg.EnableExportCommentColumns) {
-					tmpArry.push((cell && cell.w)?cell.w:'');
+					const stype = (cell && cell.w)?cell.w:'';
+					tmpArry.push(stype);
+					typeHeader.push({name:col.name, typeChecker:col.checker, stype, comment:true});
 				}
 				continue;
 			}
@@ -138,13 +141,15 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			try {
 				col.checker = new CTypeChecker(typeStr);
 				tmpArry.push(cell.w);
+				typeHeader.push({name:col.name, typeChecker:col.checker, stype:cell.w, comment:false});
 			} catch (ex) {
 				new CTypeChecker(typeStr);
 				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Type Column`
 						+ ` "${utils.yellow_ul(col.name)}" format error "${utils.yellow_ul(cell.w)}". expect is "${utils.yellow_ul(typeStr)}"!`, ex);
 			}
 		}
-		DataTable.datas.push(tmpArry);
+		DataTable.headerLst = typeHeader;
+		DataTable.values.push({type:utils.ESheetRowType.type, values: tmpArry});
 		++rIdx;
 		break;
 	}
@@ -166,7 +171,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 							const cell = GetCellData(worksheet, col.cIdx, rIdx);
 							tmpArry.push((cell && cell.w)?cell.w:'');
 						}
-						DataTable.datas.push(tmpArry);
+						DataTable.values.push({type:utils.ESheetRowType.comment, values: tmpArry});
 					}
 					break;
 				}
@@ -183,7 +188,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				}
 			}
 			try {
-				tmpArry.push(col.checker.ParseDataStr(cell));
+				tmpArry.push(col.checker.ParseDataByType(cell));
 			} catch (ex) {
 				// col.checker.ParseDataStr(cell);
 				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" `
@@ -194,7 +199,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			}
 		}
 		if (!firstCol) {
-			DataTable.datas.push(tmpArry);
+			DataTable.values.push({type:utils.ESheetRowType.data, values: tmpArry});
 		}
 	}
 	return DataTable;
@@ -245,7 +250,7 @@ async function HandleExcelFile(fileName: string) {
 		const datatable = HandleWorkSheet(fileName, sheetName, worksheet);
 		if (datatable) {
 			utils.ExportExcelDataMap.set(datatable.name, datatable);
-			gExportWrapper.exportTo(datatable, gCfg.Export.OutputDir);
+			gExportWrapper.exportTo(datatable, gCfg.Export.OutputDir, gCfg);
 		}
 	}
 }

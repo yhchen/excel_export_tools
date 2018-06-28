@@ -226,46 +226,40 @@ export class CTypeChecker
 		return true;
 	}
 
-	public ParseDataStr(value: {w?:string, v?:string|number|boolean|Date}|undefined): string {
-		if (value == undefined) return '';
+	public ParseDataByType(value: {w?:string, v?:string|number|boolean|Date}|undefined): any {
+		if (value == undefined || value.w == undefined || NullStr(value.w)) return null;
 		switch (this._type.type) {
 			case EType.array:
 				{
-					if (!value.w || NullStr(value.w)) return '';
 					const tmpObj = JSON.parse(value.w);
 					if (!isArray(tmpObj)) throw `${value} is not a valid json type`;
 					if (this._type.next == undefined) throw `type array next is undefined`;
 					for (let i = 0; i < tmpObj.length; ++i) {
 						tmpObj[i] = CTypeChecker._ParseJsonTypeStr(tmpObj[i], this._type.next);
 					}
-					return JSON.stringify(tmpObj);
+					return tmpObj;
 				}
 				break;
 			case EType.object:
 				{
-					if (!value.w) return '';
 					const tmpObj = JSON.parse(value.w);
 					if (!isObject(tmpObj)) throw `${value} is not a valid json type`;
 					if (this._type.obj == undefined) return tmpObj;
 					for (let key in tmpObj) {
 						tmpObj[key] = CTypeChecker._ParseJsonTypeStr(tmpObj[key], this._type.obj[key]);
 					}
-					return JSON.stringify(tmpObj);
+					return tmpObj;
 				}
 				break;
 			case EType.base:
 				if (this._type.is_number) {
-					const num = CTypeChecker._fixNumberFmt(<any>value.v||value.w||'', this._type);
-					if (num > 0 && num < 1) {
-						return num.toString().replace(/0\./g, '.');
-					}
-					return num.toString();
+					return CTypeChecker._fixNumberFmt(<any>value.v||value.w||'', this._type);
 				}
 				break;
 			case EType.date:
 				return CTypeChecker._fixDateFmt(value.v, this._type).toString();
 		}
-		return value.w||'';
+		return value.w;
 	}
 
 	private CheckJsonType(tmpObj:any, type: CType|undefined) : boolean {

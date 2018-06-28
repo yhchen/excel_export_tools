@@ -9,12 +9,12 @@
         "<none>"
     ],
     "Export": {
-        "<type> can be [csv|json|js|ts|lua].": false,
+        "<type> can be [csv|json|js|ts|lua].": null,
         "type": "csv",
         "OutputDir": "./test/csv/"
     },
     "CSVNameCellID": "B1",
-    "see: http://momentjs.cn/docs/#/parsing/string-format/": false,
+    "see: http://momentjs.cn/docs/#/parsing/string-format/": null,
     "DateFmt": "YYYY/MM/DD HH:mm:ss",
     "TinyDateFmt": "YYYY/MM/DD",
     "LineBreak": "\r\n",
