@@ -18,6 +18,8 @@ function ParseCSVLine(sheetRow: utils.SheetRow, cfg: utils.ExportCfg): string {
 				} else {
 					tmpValue = value.toString();
 				}
+			} else if (utils.isBoolean(value)) {
+				tmpValue = value ? 'true' : 'false';
 			} else {
 				throw `export INNER ERROR`;
 			}

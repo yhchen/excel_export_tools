@@ -19,6 +19,7 @@
  *      |      string       | auto change 'line break' to '\n'                      |
  *      |      double       | ...                                                   |
  *      |      float        | ...                                                   |
+ *      |      bool         | true: 'true' or '1'       false: 'false' empty or '0' |
  *      |      date         | YYYY/MM/DD HH:mm:ss                                   |
  *      |      tinydate     | YYYY/MM/DD                                            |
  *      |      timestamp    | Linux time stamp                                      |
@@ -97,13 +98,13 @@ function FindNum(s: string, idx?: number): {start:number, end:number, len:number
 
 // all base type
 const BaseTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'string', 'double', 'float',
-									  'vector2', 'vector3', 'json', 'date', 'tinydate', 'timestamp', 'utctime', ]);
+									  'bool', 'vector2', 'vector3', 'json', 'date', 'tinydate', 'timestamp', 'utctime', ]);
 // number type
 const BaseNumberTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ]);
 // date type
 const BaseDateTypeSet = new Set<string>([ 'date', 'tinydate', 'timestamp', 'utctime', ]);
 
-let DateFmt: string = 'YYYY/MM/DD HH:mm:ss';
+let DateFmt: string = moment.HTML5_FMT.DATETIME_LOCAL_SECONDS;
 console.log(`[TypeCheck] : Default Date format is "${DateFmt}"`);
 
 let TinyDateFMT: string = 'YYYY/MM/DD';
@@ -126,6 +127,8 @@ const NumberRangeMap = new Map<string, {min:number, max:number}>([
 		['uint',	{ min:0,			max:4294967295 }],
 	]);
 
+const BooleanKeyMap = new Map<string, boolean>([ ['true', true], ['false', false], ['0', false ], ['1', true], ]);
+
 function CheckNumberInRange(n: number, type: CType): boolean {
 	if (type.typename == undefined) return true;
 	const range = NumberRangeMap.get(type.typename);
@@ -146,6 +149,7 @@ export enum ETypeNames {
 	string		=	'string',
 	double		=	'double',
 	float		=	'float',
+	bool		=	'bool',
 	vector2		=	'vector2',
 	vector3		=	'vector3',
 	json		=	'json',
@@ -213,6 +217,8 @@ export class CTypeChecker
 		} else {
 			if (this._type.typename == ETypeNames.string) {
 				return true;
+			} else if (this._type.typename == ETypeNames.bool) {
+				return BooleanKeyMap.has(value.w.toLowerCase());
 			}
 			let tmpObj:any = undefined;
 			try {
@@ -254,6 +260,8 @@ export class CTypeChecker
 			case EType.base:
 				if (this._type.is_number) {
 					return CTypeChecker._fixNumberFmt(<any>value.v||value.w||'', this._type);
+				} else if (this._type.typename == ETypeNames.bool) {
+					return BooleanKeyMap.get(value.w.toLowerCase());
 				}
 				break;
 			case EType.date:
@@ -283,6 +291,8 @@ export class CTypeChecker
 					return CheckNumberInRange(+tmpObj, type);
 				}
 				return false;
+			} else if (type.typename == ETypeNames.bool) {
+				return BooleanKeyMap.has(tmpObj.toLowerCase());
 			}
 			else if (type.typename == ETypeNames.json) {
 				return true;
@@ -412,6 +422,8 @@ export class CTypeChecker
 			case EType.base:
 				if (type.is_number) {
 					return CTypeChecker._fixNumberFmt(value, type);
+				} else if (type.typename == ETypeNames.bool) {
+					return BooleanKeyMap.get(value.w.toLowerCase());
 				}
 				return value||'';
 			case EType.date:

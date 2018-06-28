@@ -39,6 +39,7 @@ Base Type:
     |      string       | auto change 'line break' to '\n'                      |
     |      double       | ...                                                   |
     |      float        | ...                                                   |
+    |      bool         | true: 'true' or '1'       false: 'false' empty or '0' |
     |      date         | YYYY/MM/DD HH:mm:ss                                   |
     |      tinydate     | YYYY/MM/DD                                            |
     |      timestamp    | Linux time stamp                                      |
