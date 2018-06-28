@@ -98,3 +98,30 @@ export abstract class IExportWrapper {
 export const ExportWrapperMap = new Map<string, IExportWrapper>([
 	['csv', require('./export/export_to_csv')()],
 ]);
+
+
+////////////////////////////////////////////////////////////////////////////////
+export module FMT26 {
+	export function NumToS26(num: number): string{
+		let result="";
+		++num;
+		while (num > 0){
+			let m = num % 26;
+			if (m == 0) m = 26;
+			result = String.fromCharCode(m + 64) + result;
+			num = (num - m) / 26;
+		}
+		return result;
+	}
+
+	export function S26ToNum(str: string): number {
+		let result = 0;
+		let ss = str.toUpperCase();
+		for (let i = str.length - 1, j = 1; i >= 0; i--, j *= 26) {
+			let c = ss[i];
+			if (c < 'A' || c > 'Z') return 0;
+			result += (c.charCodeAt(0) - 64) * j;
+		}
+		return --result;
+	}
+}

@@ -295,7 +295,7 @@ export class CTypeChecker
 			}
 			return isString(tmpObj);
 		case EType.date:
-			return moment.default(tmpObj).isValid();
+			return moment.default(tmpObj, DateFmt).isValid();
 		case EType.object:
 			if (!isObject(tmpObj)) return false;
 			if (!type.obj) return false;
@@ -458,7 +458,7 @@ export class CTypeChecker
 					return moment.default(date).format(TinyDateFMT);
 			}
 		} else if (isString(date)) {
-			const Date = moment.default(date);
+			const Date = moment.default(date, DateFmt);
 			if (!Date.isValid()) throw `[TypeChecker] Date Type "${date}" Invalid!`;
 			return CTypeChecker._fixDateFmt(Date.toDate(), type);
 		}

@@ -3,7 +3,22 @@ import * as fs from 'fs-extra-promise';
 import * as path from 'path';
 
 import * as utils from './utils'
-import gCfg from "./config.json";
+import ConfTpl from "./config_tpl.json";
+let gCfg: typeof ConfTpl = ConfTpl; // default config
+if (process.argv.length >= 3 && fs.existsSync(process.argv[2])) {
+	gCfg = JSON.parse(<string>fs.readFileSync(process.argv[2], { encoding: 'utf8' }));
+	function check(cfg: any, tpl: any):void{
+		for (let key in tpl) {
+			if (typeof cfg[key] !== typeof tpl[key]) {
+				throw utils.red(`configure format error. key "${utils.yellow(key)}" not found!`);
+			}
+			if (utils.isObject(typeof tpl[key])) {
+				check(cfg[key], tpl[key]);
+			}
+		}
+	};
+	check(gCfg, ConfTpl);
+}
 import {CTypeChecker,ETypeNames} from "./TypeChecker";
 
 utils.SetEnableDebugOutput(gCfg.EnableDebugOutput);
@@ -30,54 +45,9 @@ async function HandleDir(dirName: string): Promise<void> {
 	});
 }
 
-class XlsColumnIter
-{
-	public constructor(max: string) {
-		for (let c of max) {
-			if (XlsColumnIter.VAILDWORD.indexOf(c)<0) {
-				throw 'Xls ColumnIter Max Format Error!!!';
-			}
-		}
-		this._max = XlsColumnIter.S26ToNum(max);
-	}
-	public seekToBegin() { this._curr = 1; }
-	public get next(): string|undefined {
-		if (this.end) {
-			return undefined;
-		}
-		return XlsColumnIter.NumToS26(++this._curr);
-	}
-	public get curr26(): string { return XlsColumnIter.NumToS26(this._curr); }
-	public get curr10(): number { return this._curr; }
-	public get end(): boolean { return this._curr > this._max; }
-
-	public static S26ToNum(str: string) {
-		let result = 0;
-		let ss = str.toUpperCase();
-		for (let i = str.length - 1, j = 1; i >= 0; i--, j *= 26) {
-			let c = ss[i];
-			if (c < 'A' || c > 'Z') return 0;
-			result += (c.charCodeAt(0) - 64) * j;
-		}
-		return result;
-	}
-	public static NumToS26(num: number): string{
-		let result="";
-		while (num > 0){
-			let m = num % 26;
-			if (m == 0) m = 26;
-			result = String.fromCharCode(m + 64) + result;
-			num = (num - m) / 26;
-		}
-		return result;
-	}
-	private _curr = 1;
-	private _max: number;
-	private static readonly VAILDWORD = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-}
-
-function GetCellData(worksheet: xlsx.WorkSheet, column: string, row: number): xlsx.CellObject|undefined {
-	return worksheet[column + row.toString()];
+function GetCellData(worksheet: xlsx.WorkSheet, c: number, r: number): xlsx.CellObject|undefined {
+	const cell = xlsx.utils.encode_cell({c, r});
+	return worksheet[cell];
 }
 
 function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.WorkSheet): utils.DataTable|undefined {
@@ -86,69 +56,52 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV name not defined. Ignore it!`);
 		return;
 	}
-	const CSVName = worksheet[gCfg.CSVNameCellID].w;
-	if (gCfg.ExcludeSheetNames.indexOf(CSVName) >= 0) {
-		utils.logger(true, `- Pass CSV "${CSVName}"`);
+	const TableName = worksheet[gCfg.CSVNameCellID].w;
+	if (gCfg.ExcludeSheetNames.indexOf(TableName) >= 0) {
+		utils.logger(true, `- Pass CSV "${TableName}"`);
 		return;
 	}
 
-	let ColumnMax = 'A';
-	let RowMax = 0;
-	let ColumnArry = new Array<{sid:string, id:number, name:string, checker:CTypeChecker}>();
+	const Range = xlsx.utils.decode_range(<string>worksheet["!ref"]);
+	const ColumnMax = Range.e.c;
+	const RowMax = Range.e.r;
+	let ColumnArry = new Array<{cIdx:number, name:string, checker:CTypeChecker}>();
 	// find max column and rows
-	{
-		const REF = worksheet["!ref"];
-		if (!REF) {
-			utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" IS EMPTY. Ignore it!`);
-			return;
-		}
-		let SPREF = REF.split(":");
-		if (SPREF.length != 2) {
-			utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" [!ref] = "${REF}" format error!!`);
-			return;
-		}
-		ColumnMax = SPREF[1].toUpperCase().replace(/([0-9]*)/g, '');
-		RowMax = parseInt(SPREF[1].toUpperCase().replace(/([A-Z]*)/g, ''));
-	}
-	let rowIdx = 2;
-	let columnIdx = new XlsColumnIter(ColumnMax);
-	let DataTable = { name:CSVName, datas:new Array<Array<string>>() };
+	let rIdx = 1;
+	let DataTable = { name:TableName, datas:new Array<Array<string>>() };
 	// find column name
-	for (; rowIdx <= RowMax; ++rowIdx) {
-		const firstCell = GetCellData(worksheet, 'A', rowIdx);
+	for (; rIdx <= RowMax; ++rIdx) {
+		const firstCell = GetCellData(worksheet, 0, rIdx);
 		if (firstCell == undefined || firstCell.w == undefined || utils.NullStr(firstCell.w)) {
 			continue;
 		}
 		if (firstCell.w[0] == '#') {
 			if (gCfg.EnableExportCommentRows) {
-				columnIdx.seekToBegin();
 				const tmpArry = [];
-				do {
-					const cell = GetCellData(worksheet, columnIdx.curr26, rowIdx);
+				for (let cIdx = 0; cIdx < ColumnMax; ++cIdx) {
+					const cell = GetCellData(worksheet, cIdx, rIdx);
 					tmpArry.push((cell && cell.w)?cell.w:'');
-				}while(columnIdx.next);
+				}
 				DataTable.datas.push(tmpArry);
 			}
 			continue;
 		}
-		columnIdx.seekToBegin();
 		const tmpArry = [];
-		do {
-			const colName = columnIdx.curr26;
-			const cell = GetCellData(worksheet, colName, rowIdx);
+		for (let cIdx = 0; cIdx < ColumnMax; ++cIdx) {
+			const cell = GetCellData(worksheet, cIdx, rIdx);
 			if (cell == undefined || cell.w == undefined || utils.NullStr(cell.w) || (gCfg.EnableExportCommentColumns == false && cell.w[0] == '#')) {
 				continue;
 			}
-			ColumnArry.push({id:columnIdx.curr10, sid:colName, name:cell.w, checker:(cell.w[0] == '#')?new CTypeChecker(ETypeNames.string):<any>undefined});
+			ColumnArry.push({cIdx, name:cell.w, checker:(cell.w[0] == '#')?new CTypeChecker(ETypeNames.string):<any>undefined});
 			tmpArry.push(cell.w);
-		}while(columnIdx.next);
+		}
 		DataTable.datas.push(tmpArry);
-		++rowIdx;
+		++rIdx;
 		break;
 	}
 	// find type
-	for (; rowIdx <= RowMax; ++rowIdx) {
-		const firstCell = GetCellData(worksheet, ColumnArry[0].sid, rowIdx);
+	for (; rIdx <= RowMax; ++rIdx) {
+		const firstCell = GetCellData(worksheet, ColumnArry[0].cIdx, rIdx);
 		if (firstCell == undefined || firstCell.w == undefined || utils.NullStr(firstCell.w)) {
 			continue;
 		}
@@ -156,7 +109,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			if (gCfg.EnableExportCommentRows) {
 				const tmpArry = [];
 				for (let col of ColumnArry) {
-					const cell = GetCellData(worksheet, col.sid, rowIdx);
+					const cell = GetCellData(worksheet, col.cIdx, rIdx);
 					tmpArry.push((cell && cell.w)?cell.w:'');
 				}
 				DataTable.datas.push(tmpArry);
@@ -170,7 +123,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		const tmpArry = [];
 		for (const col of ColumnArry) {
 			// continue...
-			const cell = GetCellData(worksheet, col.sid, rowIdx);
+			const cell = GetCellData(worksheet, col.cIdx, rIdx);
 			if (col.checker != undefined) {
 				if (gCfg.EnableExportCommentColumns) {
 					tmpArry.push((cell && cell.w)?cell.w:'');
@@ -181,7 +134,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Type Column "${utils.yellow_ul(col.name)}" not found!`);
 				return;
 			}
-			const typeStr = col.id <= 1 ? cell.w.substr(1):cell.w;
+			const typeStr = col.cIdx == 0 ? cell.w.substr(1):cell.w;
 			try {
 				col.checker = new CTypeChecker(typeStr);
 				tmpArry.push(cell.w);
@@ -192,16 +145,16 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			}
 		}
 		DataTable.datas.push(tmpArry);
-		++rowIdx;
+		++rIdx;
 		break;
 	}
 
 	// handle datas
-	for (; rowIdx <= RowMax; ++rowIdx) {
+	for (; rIdx <= RowMax; ++rIdx) {
 		let firstCol = true;
 		const tmpArry = [];
 		for (let col of ColumnArry) {
-			const cell = GetCellData(worksheet, col.sid, rowIdx);
+			const cell = GetCellData(worksheet, col.cIdx, rIdx);
 			if (firstCol) {
 				if (cell == undefined || cell.w == undefined || utils.NullStr(cell.w)) {
 					break;
@@ -210,7 +163,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 					if (gCfg.EnableExportCommentRows) {
 						const tmpArry = [];
 						for (let col of ColumnArry) {
-							const cell = GetCellData(worksheet, col.sid, rowIdx);
+							const cell = GetCellData(worksheet, col.cIdx, rIdx);
 							tmpArry.push((cell && cell.w)?cell.w:'');
 						}
 						DataTable.datas.push(tmpArry);
@@ -223,8 +176,9 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 			if (gCfg.EnableTypeCheck) {
 				if (!col.checker.CheckDataVaildate(cell)) {
 					col.checker.CheckDataVaildate(cell);
-					utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Cell `
-							+ `"${utils.yellow_ul(col.sid+(rowIdx).toString())}" format not match "${utils.yellow_ul(value)}" with ${utils.yellow_ul(col.checker.s)}!`);
+					utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" `
+								  + `CSV Cell "${utils.yellow_ul(utils.FMT26.NumToS26(col.cIdx)+(rIdx).toString())}" `
+								  + `format not match "${utils.yellow_ul(value)}" with ${utils.yellow_ul(col.checker.s)}!`);
 					return;
 				}
 			}
@@ -232,8 +186,10 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				tmpArry.push(col.checker.ParseDataStr(cell));
 			} catch (ex) {
 				// col.checker.ParseDataStr(cell);
-				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Cell "${utils.yellow_ul(col.sid+(rowIdx).toString())}" `
-						+ `Parse Data "${utils.yellow_ul(value)}" With ${utils.yellow_ul(col.checker.s)} Cause utils.exception "${utils.red(ex)}"!`);
+				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" `
+							  + `CSV Cell "${utils.yellow_ul(utils.FMT26.NumToS26(col.cIdx)+(rIdx).toString())}" `
+							  + `Parse Data "${utils.yellow_ul(value)}" With ${utils.yellow_ul(col.checker.s)} `
+							  + `Cause utils.exception "${utils.red(ex)}"!`);
 				return;
 			}
 		}

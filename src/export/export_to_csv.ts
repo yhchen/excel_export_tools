@@ -33,7 +33,7 @@ class CSVExport implements utils.IExportWrapper {
 		const csvcontent = tmpArr.join(utils.LineBreaker) + utils.LineBreaker;
 		await fs.writeFileAsync(path.join(outdir, dt.name+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
 
-		utils.logger(false, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(path.join(outdir, dt.name+'.csv'))}". `
+		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(path.join(outdir, dt.name+'.csv'))}". `
 							+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 
 		return true;
