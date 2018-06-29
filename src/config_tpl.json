@@ -11,7 +11,7 @@
     "Export": {
         "<type> can be [csv|json|js|ts|lua].": null,
         "type": "json",
-        "OutputDir": "./test/json/"
+        "OutputDir": "./test/json/global.json"
     },
     "CSVNameCellID": "B1",
     "see: http://momentjs.com/docs/#/parsing/string-format/": null,

@@ -36,7 +36,10 @@ function ParseCSVLine(sheetRow: utils.SheetRow, cfg: utils.ExportCfg): string {
 
 
 class CSVExport implements utils.IExportWrapper {
-	public async exportTo(dt: utils.SheetDataTable, outdir: string, cfg: utils.ExportCfg): Promise<boolean> {
+	public async ExportTo(dt: utils.SheetDataTable, outdir: string, cfg: utils.ExportCfg): Promise<boolean> {
+		if (!fs.existsSync(outdir)) {
+			fs.mkdirSync(outdir);
+		}
 		if (!fs.existsSync(outdir)) {
 			utils.exception(`output path "${utils.yellow_ul(outdir)}" not exists!`);
 			return false;
@@ -52,6 +55,9 @@ class CSVExport implements utils.IExportWrapper {
 							+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 
 		return true;
+	}
+
+	public ExportEnd(outdir: string, cfg: utils.ExportCfg): void {
 	}
 }
 

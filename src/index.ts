@@ -143,7 +143,7 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				tmpArry.push(cell.w);
 				typeHeader.push({name:col.name, typeChecker:col.checker, stype:cell.w, comment:false});
 			} catch (ex) {
-				new CTypeChecker(typeStr);
+				// new CTypeChecker(typeStr);
 				utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" CSV Type Column`
 						+ ` "${utils.yellow_ul(col.name)}" format error "${utils.yellow_ul(cell.w)}". expect is "${utils.yellow_ul(typeStr)}"!`, ex);
 			}
@@ -250,15 +250,12 @@ async function HandleExcelFile(fileName: string) {
 		const datatable = HandleWorkSheet(fileName, sheetName, worksheet);
 		if (datatable) {
 			utils.ExportExcelDataMap.set(datatable.name, datatable);
-			gExportWrapper.exportTo(datatable, gCfg.Export.OutputDir, gCfg);
+			const v = await gExportWrapper.ExportTo(datatable, gCfg.Export.OutputDir, gCfg);
 		}
 	}
 }
 
 async function execute() {
-	if (!fs.existsSync(gCfg.Export.OutputDir)) {
-		fs.mkdirSync(gCfg.Export.OutputDir);
-	}
 	for (let fileOrPath of gCfg.IncludeFilesAndPath) {
 		if (!path.isAbsolute(fileOrPath)) {
 			fileOrPath = path.join(gRootDir, fileOrPath);
@@ -278,9 +275,11 @@ async function execute() {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-function main() {
+async function main() {
 	try {
-		execute()
+		utils.SetBeforeExistHandler(()=>{ gExportWrapper.ExportEnd(gCfg.Export.OutputDir, gCfg); })
+		await execute()
+		console.log('--------------------------------------------------------------------');
 	} catch (ex) {
 		utils.exception(ex);
 	}

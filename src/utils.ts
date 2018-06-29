@@ -43,6 +43,10 @@ export function NullStr(s: string) {
 ////////////////////////////////////////////////////////////////////////////////
 /************* total use tick ****************/
 // timer calc
+let BeforeExistHandler: ()=>void;
+export function SetBeforeExistHandler(handler: ()=>void) {
+	BeforeExistHandler = handler;
+}
 export module TimeUsed
 {
 	export function LastElapse(): string {
@@ -60,6 +64,9 @@ export module TimeUsed
 	let _LastAccess = _StartTime;
 
 	process.addListener('beforeExit', ()=>{
+		if (BeforeExistHandler) {
+			BeforeExistHandler();
+		}
 		process.removeAllListeners('beforeExit');
 		const color = NullStr(ExceptionLog) ? green : yellow;
 		logger(false, color("----------------------------------------"));
@@ -121,7 +128,8 @@ export type ExportCfg = {
 }
 // export template
 export abstract class IExportWrapper {
-	public abstract async exportTo(dt: SheetDataTable, outdir: string, cfg: ExportCfg): Promise<boolean>;
+	public abstract async ExportTo(dt: SheetDataTable, outdir: string, cfg: ExportCfg): Promise<boolean>;
+	public abstract ExportEnd(outdir: string, cfg: ExportCfg): void;
 }
 export const ExportWrapperMap = new Map<string, IExportWrapper>([
 	['csv', require('./export/export_to_csv')()],

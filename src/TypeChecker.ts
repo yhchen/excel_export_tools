@@ -137,7 +137,7 @@ function CheckNumberInRange(n: number, type: CType): boolean {
 }
 
 // type name enum
-export enum ETypeNames {
+export const enum ETypeNames {
 	char		=	'char',
 	uchar		=	'uchar',
 	short		=	'short',
@@ -159,7 +159,7 @@ export enum ETypeNames {
 	utctime		=	'utctime',
 };
 
-export enum EType {
+export const enum EType {
 	object,
 	array,
 	base,
