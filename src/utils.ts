@@ -125,6 +125,7 @@ export abstract class IExportWrapper {
 }
 export const ExportWrapperMap = new Map<string, IExportWrapper>([
 	['csv', require('./export/export_to_csv')()],
+	['json', require('./export/export_to_json')()],
 ]);
 
 

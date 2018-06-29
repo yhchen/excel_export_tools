@@ -159,7 +159,7 @@ export enum ETypeNames {
 	utctime		=	'utctime',
 };
 
-enum EType {
+export enum EType {
 	object,
 	array,
 	base,
@@ -185,12 +185,13 @@ export class CTypeChecker
 			this._type = {type:EType.base, typename:ETypeNames.string, is_number:false};
 			return;
 		}
-		let tt = this.initType({s, i:0});
+		let tt = this._InitType({s, i:0});
 		if (tt == undefined) throw `gen type check error: no data`;
 		this._type = tt;
 	}
 
 	public get s(): string { return this.__s; }
+	public get type(): EType { return this._type.type; }
 	// get and set Date Format
 	public static set DateFmt(s: string) { DateFmt = s; console.log(`[TypeCheck] : Change Date format to "${DateFmt}"`) }
 	public static get DateFmt(): string { return DateFmt; }
@@ -201,10 +202,6 @@ export class CTypeChecker
 	public static set FractionDigitsFMT(v: number) { FractionDigitsFMT = v; console.log(`[TypeCheck] : Change Float precision to "${FractionDigitsFMT}"`); }
 	public static get FractionDigitsFMT(): number { return FractionDigitsFMT; }
 
-	public static IsDateType(data: any): boolean {
-		return (data != undefined && moment.isDate(data));
-	}
-
 	public CheckDataVaildate(value: {w?:string, v?:string|number|boolean|Date}|undefined): boolean {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) {
 			return true;
@@ -213,7 +210,7 @@ export class CTypeChecker
 			if (!isNumber(value.v)) return false;
 			return CheckNumberInRange(value.v, this._type);
 		} else if (this._type.type == EType.date) {
-			return CTypeChecker.IsDateType(value.v);
+			return moment.isDate(value.v);
 		} else {
 			if (this._type.typename == ETypeNames.string) {
 				return true;
@@ -259,13 +256,13 @@ export class CTypeChecker
 				break;
 			case EType.base:
 				if (this._type.is_number) {
-					return CTypeChecker._fixNumberFmt(<any>value.v||value.w||'', this._type);
+					return CTypeChecker._FixNumberFmt(<any>value.v||value.w||'', this._type);
 				} else if (this._type.typename == ETypeNames.bool) {
 					return BooleanKeyMap.get(value.w.toLowerCase());
 				}
 				break;
 			case EType.date:
-				return CTypeChecker._fixDateFmt(value.v, this._type).toString();
+				return CTypeChecker._FixDateFmt(value.v, this._type).toString();
 		}
 		return value.w;
 	}
@@ -314,7 +311,7 @@ export class CTypeChecker
 		return true;
 	}
 
-	private initType(p:{s:string, i:number}): CType|undefined {
+	private _InitType(p:{s:string, i:number}): CType|undefined {
 		let thisNode:CType|undefined = undefined;
 		// skip write space
 		if (p.i >= p.s.length) undefined;
@@ -330,7 +327,7 @@ export class CTypeChecker
 				const name = p.s.substr(namescope.start, namescope.len);
 				p.i = namescope.end + 1;
 				if (p.s[p.i++] != ':') throw `gen type check error: object name key not join with ':'`;
-				let tt = this.initType(p);
+				let tt = this._InitType(p);
 				if (!tt) throw `gen type check error: object name ${name} not found value!`;
 				if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
 				if (!thisNode.obj) thisNode.obj = {};
@@ -362,7 +359,7 @@ export class CTypeChecker
 			++p.i;
 			let arrNode:CType = {type:EType.array, num, is_number:false};
 			if (p.i < p.s.length && p.s[p.i] == '[') {
-				let nextArrNode = this.initType(p);
+				let nextArrNode = this._InitType(p);
 				if (!nextArrNode) throw `gen type check error: multi array error!`;
 				arrNode.next = nextArrNode;
 			}
@@ -386,7 +383,7 @@ export class CTypeChecker
 		}
 
 		if (p.s[p.i] == '[') {
-			let tt = this.initType(p);
+			let tt = this._InitType(p);
 			if (tt == undefined) throw `gen type check error: [] type error`;
 			const typeNode = thisNode;
 			thisNode = tt;
@@ -421,18 +418,18 @@ export class CTypeChecker
 				return value;
 			case EType.base:
 				if (type.is_number) {
-					return CTypeChecker._fixNumberFmt(value, type);
+					return CTypeChecker._FixNumberFmt(value, type);
 				} else if (type.typename == ETypeNames.bool) {
 					return BooleanKeyMap.get(value.w.toLowerCase());
 				}
 				return value||'';
 			case EType.date:
-				return CTypeChecker._fixDateFmt(value, type);
+				return CTypeChecker._FixDateFmt(value, type);
 		}
 		return value||'';
 	}
 
-	private static _fixNumberFmt(n: number|string, type: CType): number {
+	private static _FixNumberFmt(n: number|string, type: CType): number {
 		if (isNumber(n)) {
 			let num = 0;
 			if (type.typename == ETypeNames.double || type.typename == ETypeNames.float) {
@@ -446,13 +443,13 @@ export class CTypeChecker
 			return num;
 		}
 		if (type.typename == ETypeNames.double || type.typename == ETypeNames.float) {
-			return CTypeChecker._fixNumberFmt(parseFloat(n), type);
+			return CTypeChecker._FixNumberFmt(parseFloat(n), type);
 		}
-		return CTypeChecker._fixNumberFmt(parseInt(n), type);
+		return CTypeChecker._FixNumberFmt(parseInt(n), type);
 	}
 
-	private static _fixDateFmt(date: any, type: CType): string|number {
-		if (CTypeChecker.IsDateType(date)) {
+	private static _FixDateFmt(date: any, type: CType): string|number {
+		if (moment.isDate(date)) {
 			switch (type.typename) {
 				case ETypeNames.utctime:
 					return (Math.round(date.getTime() / 1000 + TimeZoneOffset));
@@ -466,7 +463,7 @@ export class CTypeChecker
 		} else if (isString(date)) {
 			const Date = moment.default(date, DateFmt);
 			if (!Date.isValid()) throw `[TypeChecker] Date Type "${date}" Invalid!`;
-			return CTypeChecker._fixDateFmt(Date.toDate(), type);
+			return CTypeChecker._FixDateFmt(Date.toDate(), type);
 		}
 		return date||'';
 	}

@@ -10,8 +10,8 @@
     ],
     "Export": {
         "<type> can be [csv|json|js|ts|lua].": null,
-        "type": "csv",
-        "OutputDir": "./test/csv/"
+        "type": "json",
+        "OutputDir": "./test/json/"
     },
     "CSVNameCellID": "B1",
     "see: http://momentjs.com/docs/#/parsing/string-format/": null,
