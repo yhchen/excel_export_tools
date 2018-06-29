@@ -96,14 +96,6 @@ function FindNum(s: string, idx?: number): {start:number, end:number, len:number
 	return (end>=start)&&!first?{start,end,len:end-start+1}:undefined;
 }
 
-// all base type
-const BaseTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'string', 'double', 'float',
-									  'bool', 'vector2', 'vector3', 'json', 'date', 'tinydate', 'timestamp', 'utctime', ]);
-// number type
-const BaseNumberTypeSet = new Set<string>([ 'char', 'uchar', 'short', 'ushort', 'int', 'uint', 'int64', 'uint64', 'double', 'float', ]);
-// date type
-const BaseDateTypeSet = new Set<string>([ 'date', 'tinydate', 'timestamp', 'utctime', ]);
-
 let DateFmt: string = moment.HTML5_FMT.DATETIME_LOCAL_SECONDS;
 console.log(`[TypeCheck] : Default Date format is "${DateFmt}"`);
 
@@ -137,27 +129,39 @@ function CheckNumberInRange(n: number, type: CType): boolean {
 }
 
 // type name enum
-export const enum ETypeNames {
-	char		=	'char',
-	uchar		=	'uchar',
-	short		=	'short',
-	ushort		=	'ushort',
-	int			=	'int',
-	uint		=	'uint',
-	int64		=	'int64',
-	uint64		=	'uint64',
+export enum ETypeNames {
+	char		=	'char',			uchar		=	'uchar',
+	short		=	'short',		ushort		=	'ushort',
+	int			=	'int',			uint		=	'uint',
+	int64		=	'int64',		uint64		=	'uint64',
 	string		=	'string',
-	double		=	'double',
-	float		=	'float',
+	double		=	'double',		float		=	'float',
 	bool		=	'bool',
-	vector2		=	'vector2',
-	vector3		=	'vector3',
+	vector2		=	'vector2',		vector3		=	'vector3',
 	json		=	'json',
-	date		=	'date',
-	tinydate	=	'tinydate',
-	timestamp	=	'timestamp',
-	utctime		=	'utctime',
+	date		=	'date',			tinydate	=	'tinydate',
+	timestamp	=	'timestamp',	utctime		=	'utctime',
 };
+
+const TypeDefaultValue = new Map<ETypeNames|undefined, any>([
+	[ ETypeNames.char, 0 ],			[ ETypeNames.uchar, 0 ],
+	[ ETypeNames.short, 0 ],		[ ETypeNames.ushort, 0 ],
+	[ ETypeNames.int, 0 ],			[ ETypeNames.uint, 0 ],
+	[ ETypeNames.int64, 0 ],		[ ETypeNames.uint64, 0 ],
+	[ ETypeNames.string, '' ],
+	[ ETypeNames.double, 0 ],		[ ETypeNames.float, 0 ],
+	[ ETypeNames.bool, false ],
+	[ ETypeNames.vector2, [] ],		[ ETypeNames.vector3, [] ],
+	[ ETypeNames.json, {} ],
+	[ ETypeNames.date, '' ],		[ ETypeNames.tinydate, '' ],
+	[ ETypeNames.timestamp, 0 ],	[ ETypeNames.utctime, 0 ],
+]);
+
+// number type
+const BaseNumberTypeSet = new Set<string>([ ETypeNames.char, ETypeNames.uchar, ETypeNames.short, ETypeNames.ushort, ETypeNames.int,
+											ETypeNames.uint, ETypeNames.int64, ETypeNames.uint64, ETypeNames.double, ETypeNames.float, ]);
+// date type
+const BaseDateTypeSet = new Set<string>([ ETypeNames.date, ETypeNames.tinydate, ETypeNames.timestamp, ETypeNames.utctime, ]);
 
 export const enum EType {
 	object,
@@ -170,7 +174,7 @@ export interface CType
 {
 	type: EType;
 	is_number: boolean;
-	typename?: string;
+	typename?: ETypeNames;
 	num?: number;
 	next?: CType;
 	obj?: {[name:string]: CType};
@@ -191,7 +195,15 @@ export class CTypeChecker
 	}
 
 	public get s(): string { return this.__s; }
-	public get type(): EType { return this._type.type; }
+	public get DefaultValue(): any {
+		let r;
+		switch (this._type.type) {
+			case EType.array:	r = [];	break;
+			case EType.object:	r = {};	break;
+			default:			r = TypeDefaultValue.get(this._type.typename);	break;
+		}
+		return r !== undefined ? r : null;
+	}
 	// get and set Date Format
 	public static set DateFmt(s: string) { DateFmt = s; console.log(`[TypeCheck] : Change Date format to "${DateFmt}"`) }
 	public static get DateFmt(): string { return DateFmt; }
@@ -370,14 +382,14 @@ export class CTypeChecker
 				throw `gen type check error: base type not found!`;
 			}
 			const typename = p.s.substr(typescope.start, typescope.len);
-			if (!BaseTypeSet.has(typename)) throw `gen type check error: base type = ${this._type.typename} not exist!`;
+			if (!ETypeNames[<any>typename]) throw `gen type check error: base type = ${this._type.typename} not exist!`;
 			if (typename == ETypeNames.vector2 || typename == ETypeNames.vector3) {
 				thisNode = {type:EType.base, typename:ETypeNames.float, is_number:true};
 				const prevNode: CType = { type:EType.array, num:((typename==ETypeNames.vector2)?2:3), is_number:false };
 				prevNode.next = thisNode;
 				thisNode = prevNode;
 			} else {
-				thisNode = {type: BaseDateTypeSet.has(typename)?EType.date:EType.base, typename:typename, is_number:BaseNumberTypeSet.has(typename)};
+				thisNode = {type: BaseDateTypeSet.has(typename)?EType.date:EType.base, typename:<ETypeNames>typename, is_number:BaseNumberTypeSet.has(typename)};
 			}
 			p.i = typescope.end+1;
 		}

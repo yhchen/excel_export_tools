@@ -123,7 +123,6 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 		const tmpArry = [];
 		let typeHeader = new Array<utils.SheetHeader>();
 		for (const col of ColumnArry) {
-			// continue...
 			const cell = GetCellData(worksheet, col.cIdx, rIdx);
 			if (col.checker != undefined) {
 				if (gCfg.EnableExportCommentColumns) {

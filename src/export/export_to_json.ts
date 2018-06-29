@@ -7,14 +7,11 @@ function ParseJsonLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRo
 	if (sheetRow.type != utils.ESheetRowType.data) return;
 	let item: any = {};
 	for (let i = 0; i < header.length && i < sheetRow.values.length; ++i) {
-		for (let col of header) {
-			if (col.comment) continue;
-		}
-		let value = sheetRow.values[i];
-		switch (header[i].typeChecker.type) {
-			case TC.EType.array:	item[header[i].name] = value || [];		break;
-			case TC.EType.object:	item[header[i].name] = value || {};		break;
-			default:				item[header[i].name] = value;			break;
+		if (!header[i] || header[i].comment) continue;
+		if (sheetRow.values[i] != null) {
+			item[header[i].name] = sheetRow.values[i];
+		} else {
+			item[header[i].name] = header[i].typeChecker.DefaultValue;
 		}
 	}
 	rootNode[sheetRow.values[0]] = item;
