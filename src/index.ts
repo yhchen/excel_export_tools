@@ -250,7 +250,7 @@ async function HandleExcelFile(fileName: string) {
 		return;
 	}
 	for (let sheetName of excel.SheetNames) {
-		utils.logger(true, `handle excel "${utils.brightWhite(fileName)}" sheet "${utils.yellow_ul(sheetName)}"`);
+		utils.logger(true, `- Handle excel "${utils.brightWhite(fileName)}" sheet "${utils.yellow_ul(sheetName)}"`);
 		const worksheet = excel.Sheets[sheetName];
 		const datatable = HandleWorkSheet(fileName, sheetName, worksheet);
 		if (datatable) {

@@ -45,8 +45,8 @@ class JSONExport extends utils.IExportWrapper {
 	public ExportEnd(cfg: utils.GlobalCfg): void {
 		const outdir = this._exportCfg.OutputDir;
 		if (!JSONExport.IsFile(outdir)) return;
-		if (!this.CreateDir(path.basename(outdir))) {
-			utils.exception(`create output path "${utils.yellow_ul(path.basename(outdir))}" failure!`);
+		if (!this.CreateDir(path.dirname(outdir))) {
+			utils.exception(`create output path "${utils.yellow_ul(path.dirname(outdir))}" failure!`);
 			return;
 		}
 		const jsoncontent = JSON.stringify(this._globalObj);

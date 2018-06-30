@@ -128,7 +128,9 @@ export type GlobalCfg = {
 	EnableExportCommentRows: boolean;
 }
 export type ExportCfg = {
+	type: string;
 	OutputDir: string;
+	ExportTemple?: string;
 	UseDefaultValueIfEmpty: boolean;
 }
 // export template
@@ -151,6 +153,9 @@ export abstract class IExportWrapper {
 export const ExportWrapperMap = new Map<string, (cfg: ExportCfg)=>IExportWrapper>([
 	['csv', require('./export/export_to_csv')],
 	['json', require('./export/export_to_json')],
+	['js', require('./export/export_to_js')],
+	// ['ts', require('./export/export_to_ts')],
+	// ['lua', require('./export/export_to_lua')],
 ]);
 
 
