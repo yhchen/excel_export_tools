@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as fs from "fs-extra-promise";
 import * as utils from "../utils";
-import * as TC from "../TypeChecker";
 
 function ParseJsonLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, rootNode: any, cfg: utils.ExportCfg) {
 	if (sheetRow.type != utils.ESheetRowType.data) return;
@@ -10,7 +9,7 @@ function ParseJsonLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRo
 		if (!header[i] || header[i].comment) continue;
 		if (sheetRow.values[i] != null) {
 			item[header[i].name] = sheetRow.values[i];
-		} else {
+		} else if (cfg.Export.UseDefaultValueIfEmpty) {
 			item[header[i].name] = header[i].typeChecker.DefaultValue;
 		}
 	}

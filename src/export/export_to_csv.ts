@@ -2,11 +2,14 @@ import * as utils from "../utils";
 import * as fs from "fs-extra-promise";
 import * as path from 'path';
 
-function ParseCSVLine(sheetRow: utils.SheetRow, cfg: utils.ExportCfg): string {
+function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, cfg: utils.ExportCfg): string {
 	let tmpArry = new Array<string>();
 	for (let i = 0; i < sheetRow.values.length; ++i) {
 		let value = sheetRow.values[i];
 		let tmpValue = '';
+		if (value == null) {
+			value = header[i].typeChecker.SDefaultValue;
+		}
 		if (value != null) {
 			if (utils.isString(value)) {
 				tmpValue = value;
@@ -46,7 +49,7 @@ class CSVExport implements utils.IExportWrapper {
 		}
 		let tmpArr = new Array<string>();
 		for (let row of dt.values) {
-			tmpArr.push(ParseCSVLine(row, cfg));
+			tmpArr.push(ParseCSVLine(dt.headerLst, row, cfg));
 		}
 		const csvcontent = tmpArr.join(utils.LineBreaker) + utils.LineBreaker;
 		await fs.writeFileAsync(path.join(outdir, dt.name+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});

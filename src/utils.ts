@@ -125,6 +125,9 @@ export function SetLineBreaker(v: string) { LineBreaker = v; }
 export type ExportCfg = {
 	EnableExportCommentColumns: boolean;
 	EnableExportCommentRows: boolean;
+	Export: {
+		UseDefaultValueIfEmpty: boolean
+	}
 }
 // export template
 export abstract class IExportWrapper {

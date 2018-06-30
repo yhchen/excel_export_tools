@@ -143,18 +143,18 @@ export enum ETypeNames {
 	timestamp	=	'timestamp',	utctime		=	'utctime',
 };
 
-const TypeDefaultValue = new Map<ETypeNames|undefined, any>([
-	[ ETypeNames.char, 0 ],			[ ETypeNames.uchar, 0 ],
-	[ ETypeNames.short, 0 ],		[ ETypeNames.ushort, 0 ],
-	[ ETypeNames.int, 0 ],			[ ETypeNames.uint, 0 ],
-	[ ETypeNames.int64, 0 ],		[ ETypeNames.uint64, 0 ],
-	[ ETypeNames.string, '' ],
-	[ ETypeNames.double, 0 ],		[ ETypeNames.float, 0 ],
-	[ ETypeNames.bool, false ],
-	[ ETypeNames.vector2, [] ],		[ ETypeNames.vector3, [] ],
-	[ ETypeNames.json, {} ],
-	[ ETypeNames.date, '' ],		[ ETypeNames.tinydate, '' ],
-	[ ETypeNames.timestamp, 0 ],	[ ETypeNames.utctime, 0 ],
+const TypeDefaultValue = new Map<ETypeNames|undefined, {w:string, v:any}>([
+	[ ETypeNames.char, {w:'0',v:0} ],				[ ETypeNames.uchar, {w:'0',v:0} ],
+	[ ETypeNames.short, {w:'0',v:0} ],				[ ETypeNames.ushort, {w:'0',v:0} ],
+	[ ETypeNames.int, {w:'0',v:0} ],				[ ETypeNames.uint, {w:'0',v:0} ],
+	[ ETypeNames.int64, {w:'0',v:0} ],				[ ETypeNames.uint64, {w:'0',v:0} ],
+	[ ETypeNames.string, {w:'',v:''} ],
+	[ ETypeNames.double, {w:'0',v:0} ],				[ ETypeNames.float, {w:'0',v:0} ],
+	[ ETypeNames.bool, {w:'false',v:false} ],
+	[ ETypeNames.vector2, {w:'[]',v:[]} ],			[ ETypeNames.vector3, {w:'[]',v:[]} ],
+	[ ETypeNames.json, {w:'{}',v:{}} ],
+	[ ETypeNames.date, {w:'',v:''} ],				[ ETypeNames.tinydate, {w:'',v:''} ],
+	[ ETypeNames.timestamp, {w:'0',v:0} ],			[ ETypeNames.utctime, {w:'0',v:0} ],
 ]);
 
 // number type
@@ -196,13 +196,22 @@ export class CTypeChecker
 
 	public get s(): string { return this.__s; }
 	public get DefaultValue(): any {
-		let r;
 		switch (this._type.type) {
-			case EType.array:	r = [];	break;
-			case EType.object:	r = {};	break;
-			default:			r = TypeDefaultValue.get(this._type.typename);	break;
+			case EType.array:	return [];
+			case EType.object:	return {};
+			default:
+				let r = TypeDefaultValue.get(this._type.typename);
+				return (r !== undefined) ? r.v : null;
 		}
-		return r !== undefined ? r : null;
+	}
+	public get SDefaultValue(): string {
+		switch (this._type.type) {
+			case EType.array:	return '[]';
+			case EType.object:	return '{}';
+			default:
+				let r = TypeDefaultValue.get(this._type.typename);
+				return (r !== undefined) ? r.w : '';
+		}
 	}
 	// get and set Date Format
 	public static set DateFmt(s: string) { DateFmt = s; console.log(`[TypeCheck] : Change Date format to "${DateFmt}"`) }
