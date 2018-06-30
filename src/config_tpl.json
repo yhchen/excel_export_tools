@@ -8,12 +8,24 @@
     "ExcludeSheetNames": [
         "<none>"
     ],
-    "Export": {
-        "<type> can be [csv|json|js|ts|lua].": null,
-        "type": "json",
-        "OutputDir": "./test/json/global.json",
-        "UseDefaultValueIfEmpty": true
-    },
+    "Export": [
+        {
+            "<type> can be [csv|json|js|ts|lua].": null,
+            "type": "json",
+            "OutputDir": "./test/global.json",
+            "UseDefaultValueIfEmpty": true
+        },
+        {
+            "type": "json",
+            "OutputDir": "./test/json/",
+            "UseDefaultValueIfEmpty": true
+        },
+        {
+            "type": "csv",
+            "OutputDir": "./test/csv/",
+            "UseDefaultValueIfEmpty": true
+        }
+    ],
     "CSVNameCellID": "B1",
     "see: http://momentjs.com/docs/#/parsing/string-format/": null,
     "DateFmt": "YYYY/MM/DD HH:mm:ss",

@@ -23,9 +23,15 @@ import {CTypeChecker,ETypeNames} from "./TypeChecker";
 
 utils.SetEnableDebugOutput(gCfg.EnableDebugOutput);
 utils.SetLineBreaker(gCfg.LineBreak);
-const gExportWrapper: utils.IExportWrapper = <utils.IExportWrapper>utils.ExportWrapperMap.get(gCfg.Export.type);
-if (gExportWrapper == undefined) {
-	utils.exception(utils.red(`Export is not currently supported for the current type "${utils.yellow_ul(gCfg.Export.type)}"!`));
+
+const gExportWrapperLst = new Array<utils.IExportWrapper>();
+for (const exportCfg of gCfg.Export) {
+	const Constructor = utils.ExportWrapperMap.get(exportCfg.type);
+	if (Constructor == undefined) {
+		utils.exception(utils.red(`Export is not currently supported for the current type "${utils.yellow_ul(exportCfg.type)}"!`));
+		throw `initialize failure!`;
+	}
+	gExportWrapperLst.push(Constructor(exportCfg));
 }
 
 const gRootDir = process.cwd();
@@ -249,7 +255,9 @@ async function HandleExcelFile(fileName: string) {
 		const datatable = HandleWorkSheet(fileName, sheetName, worksheet);
 		if (datatable) {
 			utils.ExportExcelDataMap.set(datatable.name, datatable);
-			const v = await gExportWrapper.ExportTo(datatable, gCfg.Export.OutputDir, gCfg);
+			for (const handler of gExportWrapperLst) {
+				await handler.ExportTo(datatable, gCfg);
+			}
 		}
 	}
 }
@@ -276,7 +284,11 @@ async function execute() {
 ////////////////////////////////////////////////////////////////////////////////
 async function main() {
 	try {
-		utils.SetBeforeExistHandler(()=>{ gExportWrapper.ExportEnd(gCfg.Export.OutputDir, gCfg); })
+		utils.SetBeforeExistHandler(()=>{
+			for (let handler of gExportWrapperLst) {
+				handler.ExportEnd(gCfg);
+			}
+		});
 		await execute()
 		console.log('--------------------------------------------------------------------');
 	} catch (ex) {

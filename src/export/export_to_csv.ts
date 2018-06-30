@@ -2,15 +2,16 @@ import * as utils from "../utils";
 import * as fs from "fs-extra-promise";
 import * as path from 'path';
 
-function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, cfg: utils.ExportCfg): string {
+function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, cfg: utils.GlobalCfg, exportCfg: utils.ExportCfg): string {
 	let tmpArry = new Array<string>();
 	for (let i = 0; i < sheetRow.values.length; ++i) {
 		let value = sheetRow.values[i];
 		let tmpValue = '';
 		if (value == null) {
-			value = header[i].typeChecker.SDefaultValue;
-		}
-		if (value != null) {
+			if (exportCfg.UseDefaultValueIfEmpty) {
+				tmpValue = header[i].typeChecker.SDefaultValue;
+			}
+		} else {
 			if (utils.isString(value)) {
 				tmpValue = value;
 			} else if (utils.isObject(value) || utils.isArray(value)) {
@@ -38,18 +39,17 @@ function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow
 }
 
 
-class CSVExport implements utils.IExportWrapper {
-	public async ExportTo(dt: utils.SheetDataTable, outdir: string, cfg: utils.ExportCfg): Promise<boolean> {
-		if (!fs.existsSync(outdir)) {
-			fs.mkdirSync(outdir);
-		}
-		if (!fs.existsSync(outdir)) {
+class CSVExport extends utils.IExportWrapper {
+	constructor(exportCfg: utils.ExportCfg) { super(exportCfg); }
+	public async ExportTo(dt: utils.SheetDataTable, cfg: utils.GlobalCfg): Promise<boolean> {
+		const outdir = this._exportCfg.OutputDir;
+		if (!this.CreateDir(outdir)) {
 			utils.exception(`output path "${utils.yellow_ul(outdir)}" not exists!`);
 			return false;
 		}
 		let tmpArr = new Array<string>();
 		for (let row of dt.values) {
-			tmpArr.push(ParseCSVLine(dt.headerLst, row, cfg));
+			tmpArr.push(ParseCSVLine(dt.headerLst, row, cfg, this._exportCfg));
 		}
 		const csvcontent = tmpArr.join(utils.LineBreaker) + utils.LineBreaker;
 		await fs.writeFileAsync(path.join(outdir, dt.name+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
@@ -60,8 +60,8 @@ class CSVExport implements utils.IExportWrapper {
 		return true;
 	}
 
-	public ExportEnd(outdir: string, cfg: utils.ExportCfg): void {
+	public ExportEnd(cfg: utils.GlobalCfg): void {
 	}
 }
 
-module.exports = function():utils.IExportWrapper { return new CSVExport(); };
+module.exports = function(exportCfg: utils.ExportCfg):utils.IExportWrapper { return new CSVExport(exportCfg); };

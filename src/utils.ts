@@ -1,5 +1,6 @@
 export { isString, isNumber, isArray, isObject, isBoolean, isDate } from 'util';
 import { isString } from 'util';
+import * as fs from 'fs-extra';
 
 ////////////////////////////////////////////////////////////////////////////////
 /*************** console color ***************/
@@ -122,21 +123,34 @@ export function SetLineBreaker(v: string) { LineBreaker = v; }
 
 ////////////////////////////////////////////////////////////////////////////////
 // export config
-export type ExportCfg = {
+export type GlobalCfg = {
 	EnableExportCommentColumns: boolean;
 	EnableExportCommentRows: boolean;
-	Export: {
-		UseDefaultValueIfEmpty: boolean
-	}
+}
+export type ExportCfg = {
+	OutputDir: string;
+	UseDefaultValueIfEmpty: boolean;
 }
 // export template
 export abstract class IExportWrapper {
-	public abstract async ExportTo(dt: SheetDataTable, outdir: string, cfg: ExportCfg): Promise<boolean>;
-	public abstract ExportEnd(outdir: string, cfg: ExportCfg): void;
+	public constructor(exportCfg: ExportCfg) {
+		this._exportCfg = exportCfg;
+	}
+	public abstract async ExportTo(dt: SheetDataTable, cfg: GlobalCfg): Promise<boolean>;
+	public abstract ExportEnd(cfg: GlobalCfg): void;
+	protected CreateDir(outdir: string): boolean {
+		if (!fs.existsSync(outdir)) {
+			fs.ensureDirSync(outdir);
+			return fs.existsSync(outdir);
+		}
+		return true;
+	}
+
+	protected _exportCfg: ExportCfg;
 }
-export const ExportWrapperMap = new Map<string, IExportWrapper>([
-	['csv', require('./export/export_to_csv')()],
-	['json', require('./export/export_to_json')()],
+export const ExportWrapperMap = new Map<string, (cfg: ExportCfg)=>IExportWrapper>([
+	['csv', require('./export/export_to_csv')],
+	['json', require('./export/export_to_json')],
 ]);
 
 
