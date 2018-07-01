@@ -26,7 +26,7 @@ class JSONExport extends utils.IExportWrapper {
 		for (let row of dt.values) {
 			ParseJsonLine(dt.headerLst, row, jsonObj, cfg, this._exportCfg);
 		}
-		if (JSONExport.IsFile(outdir)) {
+		if (this.IsFile(outdir)) {
 			this._globalObj[dt.name] = jsonObj;
 		} else {
 			if (!this.CreateDir(outdir)) {
@@ -44,7 +44,7 @@ class JSONExport extends utils.IExportWrapper {
 
 	public ExportEnd(cfg: utils.GlobalCfg): void {
 		const outdir = this._exportCfg.OutputDir;
-		if (!JSONExport.IsFile(outdir)) return;
+		if (!this.IsFile(outdir)) return;
 		if (!this.CreateDir(path.dirname(outdir))) {
 			utils.exception(`create output path "${utils.yellow_ul(path.dirname(outdir))}" failure!`);
 			return;
@@ -54,8 +54,6 @@ class JSONExport extends utils.IExportWrapper {
 		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
 						 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 	}
-
-	private static IsFile(s: string): boolean { return (path.extname(s) == '.json'); }
 
 	private _globalObj: any = {};
 }

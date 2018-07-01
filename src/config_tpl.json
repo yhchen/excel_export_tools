@@ -21,6 +21,12 @@
             "UseDefaultValueIfEmpty": true
         },
         {
+            "type": "json",
+            "OutputDir": "./test/json-bytes.bytes",
+            "UseDefaultValueIfEmpty": true,
+            "ExtName": ".bytes"
+        },
+        {
             "type": "js",
             "OutputDir": "./test/js/",
             "ExportTemple": "export const {name}={data}",

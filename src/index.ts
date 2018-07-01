@@ -18,6 +18,10 @@ if (process.argv.length >= 3 && fs.existsSync(process.argv[2])) {
 		}
 	};
 	check(gCfg, ConfTpl);
+
+	for (let exportCfg of gCfg.Export) {
+		(<any>exportCfg).ExtName = (<any>exportCfg).ExtName || `.${exportCfg.type}`;
+	}
 }
 import {CTypeChecker,ETypeNames} from "./TypeChecker";
 

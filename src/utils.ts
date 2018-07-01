@@ -1,6 +1,7 @@
 export { isString, isNumber, isArray, isObject, isBoolean, isDate } from 'util';
 import { isString } from 'util';
 import * as fs from 'fs-extra';
+import * as path from 'path';
 
 ////////////////////////////////////////////////////////////////////////////////
 /*************** console color ***************/
@@ -130,8 +131,9 @@ export type GlobalCfg = {
 export type ExportCfg = {
 	type: string;
 	OutputDir: string;
-	ExportTemple?: string;
 	UseDefaultValueIfEmpty: boolean;
+	ExportTemple?: string;
+	ExtName?: string;
 }
 // export template
 export abstract class IExportWrapper {
@@ -148,9 +150,15 @@ export abstract class IExportWrapper {
 		return true;
 	}
 
+	protected IsFile(s: string): boolean {
+		return path.extname(s) == this._exportCfg.ExtName;
+	}
+
 	protected _exportCfg: ExportCfg;
 }
-export const ExportWrapperMap = new Map<string, (cfg: ExportCfg)=>IExportWrapper>([
+
+export type ExportWrapperFactory = (cfg: ExportCfg)=>IExportWrapper;
+export const ExportWrapperMap = new Map<string, ExportWrapperFactory>([
 	['csv', require('./export/export_to_csv')],
 	['json', require('./export/export_to_json')],
 	['js', require('./export/export_to_js')],
