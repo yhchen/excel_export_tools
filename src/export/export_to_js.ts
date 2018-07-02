@@ -21,7 +21,7 @@ function ParseJSLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow,
 
 function DumpToString(data: any) {
 	if (utils.isString(data)) {
-		return `'${data}'`;
+		return `'${data.replace(/\'/g, "\\'")}'`;
 	} else if (utils.isNumber(data)) {
 		return data.toString();
 	} else if (utils.isArray(data)) {
