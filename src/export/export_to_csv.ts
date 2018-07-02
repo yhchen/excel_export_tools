@@ -10,6 +10,9 @@ function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow
 		if (value == null) {
 			if (exportCfg.UseDefaultValueIfEmpty) {
 				tmpValue = header[i].typeChecker.SDefaultValue;
+				if (tmpValue === undefined) {
+					tmpValue = '';
+				}
 			}
 		} else {
 			if (utils.isString(value)) {
@@ -52,9 +55,9 @@ class CSVExport extends utils.IExportWrapper {
 			tmpArr.push(ParseCSVLine(dt.headerLst, row, cfg, this._exportCfg));
 		}
 		const csvcontent = tmpArr.join(utils.LineBreaker) + utils.LineBreaker;
-		await fs.writeFileAsync(path.join(outdir, dt.name+'.csv'), csvcontent, {encoding:'utf8', flag:'w+'});
+		await fs.writeFileAsync(path.join(outdir, dt.name+this._exportCfg.ExtName), csvcontent, {encoding:'utf8', flag:'w+'});
 
-		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(path.join(outdir, dt.name+'.csv'))}". `
+		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(path.join(outdir, dt.name+this._exportCfg.ExtName))}". `
 							+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 
 		return true;

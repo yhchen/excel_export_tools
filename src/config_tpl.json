@@ -13,35 +13,35 @@
             "<type> can be [csv|json|js|ts|lua].": null,
             "type": "json",
             "OutputDir": "./test/global.json",
-            "UseDefaultValueIfEmpty": true
+            "UseDefaultValueIfEmpty": false
         },
         {
             "type": "json",
             "OutputDir": "./test/json/",
-            "UseDefaultValueIfEmpty": true
+            "UseDefaultValueIfEmpty": false
         },
         {
             "type": "json",
             "OutputDir": "./test/json-bytes.bytes",
-            "UseDefaultValueIfEmpty": true,
-            "ExtName": ".bytes"
+            "ExtName": ".bytes",
+            "UseDefaultValueIfEmpty": false
         },
         {
             "type": "js",
             "OutputDir": "./test/js/",
             "ExportTemple": "export const {name}={data}",
-            "UseDefaultValueIfEmpty": true
+            "UseDefaultValueIfEmpty": false
         },
         {
             "type": "js",
             "OutputDir": "./test/global.js",
             "ExportTemple": "export const GConfig = {data}",
-            "UseDefaultValueIfEmpty": true
+            "UseDefaultValueIfEmpty": false
         },
         {
             "type": "csv",
             "OutputDir": "./test/csv/",
-            "UseDefaultValueIfEmpty": true
+            "UseDefaultValueIfEmpty": false
         }
     ],
     "CSVNameCellID": "B1",

@@ -10,7 +10,9 @@ function ParseJsonLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRo
 		if (sheetRow.values[i] != null) {
 			item[header[i].name] = sheetRow.values[i];
 		} else if (exportCfg.UseDefaultValueIfEmpty) {
-			item[header[i].name] = header[i].typeChecker.DefaultValue;
+			if (header[i].typeChecker.DefaultValue != undefined) {
+				item[header[i].name] = header[i].typeChecker.DefaultValue;
+			}
 		}
 	}
 	rootNode[sheetRow.values[0]] = item;
@@ -33,8 +35,8 @@ class JSONExport extends utils.IExportWrapper {
 				utils.exception(`create output path "${utils.yellow_ul(outdir)}" failure!`);
 				return false;
 			}
-			const jsoncontent = JSON.stringify(jsonObj);
-			const outfile = path.join(outdir, dt.name+'.json');
+			const jsoncontent = JSON.stringify(jsonObj||"{}");
+			const outfile = path.join(outdir, dt.name+this._exportCfg.ExtName);
 			await fs.writeFileAsync(outfile, jsoncontent, {encoding:'utf8', flag:'w+'});
 			utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
 							 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
@@ -49,7 +51,7 @@ class JSONExport extends utils.IExportWrapper {
 			utils.exception(`create output path "${utils.yellow_ul(path.dirname(outdir))}" failure!`);
 			return;
 		}
-		const jsoncontent = JSON.stringify(this._globalObj);
+		const jsoncontent = JSON.stringify(this._globalObj||"{}");
 		fs.writeFileSync(outdir, jsoncontent, {encoding:'utf8', flag:'w+'});
 		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
 						 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);

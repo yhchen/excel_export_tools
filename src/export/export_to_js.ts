@@ -8,10 +8,12 @@ function ParseJSLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow,
 	let item: any = {};
 	for (let i = 0; i < header.length && i < sheetRow.values.length; ++i) {
 		if (!header[i] || header[i].comment) continue;
-		if (sheetRow.values[i] != null) {
+		if (sheetRow.values[i] != undefined) {
 			item[header[i].name] = sheetRow.values[i];
 		} else if (exportCfg.UseDefaultValueIfEmpty) {
-			item[header[i].name] = header[i].typeChecker.DefaultValue;
+			if (header[i].typeChecker.DefaultValue != undefined) {
+				item[header[i].name] = header[i].typeChecker.DefaultValue;
+			}
 		}
 	}
 	rootNode[sheetRow.values[0]] = item;
@@ -25,15 +27,15 @@ function DumpToString(data: any) {
 	} else if (utils.isArray(data)) {
 		let s = '';
 		for (let i = 0; i < data.length; ++i) {
-			s += (i === 0?'':',') + DumpToString(data[i]);
+			if (data[i] === undefined) continue;
+			s += (s.length===0?'':',') + DumpToString(data[i]);
 		}
 		return `[${s}]`;
 	} else if (utils.isObject(data)) {
 		let s = '';
-		let first = true;
 		for (let name in data) {
-			s += `${first?'':','}${name}:${DumpToString(data[name])}`;
-			first = false;
+			if (data[name] === undefined) continue;
+			s += `${s.length===0?'':','}${name}:${DumpToString(data[name])}`;
 		}
 		return `{${s}}`;
 	} else if (utils.isBoolean(data)) {
@@ -74,8 +76,8 @@ class JSExport extends utils.IExportWrapper {
 				utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{name}")}!`);
 				return false;
 			}
-			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", DumpToString(jsObj));
-			const outfile = path.join(outdir, dt.name+'.js');
+			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", DumpToString(jsObj)||"{}");
+			const outfile = path.join(outdir, dt.name+this._exportCfg.ExtName);
 			await fs.writeFileAsync(outfile, jscontent, {encoding:'utf8', flag:'w+'});
 			utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
 							 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
