@@ -271,7 +271,7 @@ export class CTypeChecker
 				}
 				break;
 			case EType.date:
-				return CTypeChecker._FixDateFmt(value.v, this._type).toString();
+				return CTypeChecker._FixDateFmt(value.v, this._type);
 		}
 		return value.w;
 	}
