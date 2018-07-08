@@ -140,6 +140,7 @@ export abstract class IExportWrapper {
 	public constructor(exportCfg: ExportCfg) {
 		this._exportCfg = exportCfg;
 	}
+	public abstract get DefaultExtName(): string;
 	public abstract async ExportTo(dt: SheetDataTable, cfg: GlobalCfg): Promise<boolean>;
 	public abstract ExportEnd(cfg: GlobalCfg): void;
 	protected CreateDir(outdir: string): boolean {
@@ -151,7 +152,10 @@ export abstract class IExportWrapper {
 	}
 
 	protected IsFile(s: string): boolean {
-		return path.extname(s) == this._exportCfg.ExtName;
+		const ext = this._exportCfg.ExtName||this.DefaultExtName;
+		const idx = s.lastIndexOf(ext);
+		if (idx < 0) return false;
+		return (idx + ext.length == s.length);
 	}
 
 	protected _exportCfg: ExportCfg;
@@ -162,7 +166,7 @@ export const ExportWrapperMap = new Map<string, ExportWrapperFactory>([
 	['csv', require('./export/export_to_csv')],
 	['json', require('./export/export_to_json')],
 	['js', require('./export/export_to_js')],
-	// ['ts', require('./export/export_to_ts')],
+	['ts', require('./export/export_to_ts')],
 	// ['lua', require('./export/export_to_lua')],
 ]);
 

@@ -193,6 +193,7 @@ export class CTypeChecker
 	}
 
 	public get s(): string { return this.__s; }
+	public get type(): CType { return this._type; }
 	public get DefaultValue(): any {
 		let r = TypeDefaultValue.get(this._type.typename);
 		return (r !== undefined) ? r.v : undefined;

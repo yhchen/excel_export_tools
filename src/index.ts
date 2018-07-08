@@ -18,10 +18,6 @@ if (process.argv.length >= 3 && fs.existsSync(process.argv[2])) {
 		}
 	};
 	check(gCfg, ConfTpl);
-
-	for (let exportCfg of gCfg.Export) {
-		(<any>exportCfg).ExtName = (<any>exportCfg).ExtName || `.${exportCfg.type}`;
-	}
 }
 import {CTypeChecker,ETypeNames} from "./TypeChecker";
 
@@ -33,9 +29,15 @@ for (const exportCfg of gCfg.Export) {
 	const Constructor = utils.ExportWrapperMap.get(exportCfg.type);
 	if (Constructor == undefined) {
 		utils.exception(utils.red(`Export is not currently supported for the current type "${utils.yellow_ul(exportCfg.type)}"!`));
-		throw `initialize failure!`;
+		throw `ERROR : Export constructor not found. initialize failure!`;
 	}
-	gExportWrapperLst.push(Constructor(exportCfg));
+	const Exportor = Constructor.call(Constructor, exportCfg);
+	if (Exportor) {
+		if ((<any>exportCfg).ExtName == undefined) {
+			(<any>exportCfg).ExtName = Exportor.DefaultExtName;
+		}
+		gExportWrapperLst.push(Exportor);
+	}
 }
 
 const gRootDir = process.cwd();

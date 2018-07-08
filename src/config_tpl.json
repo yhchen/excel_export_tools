@@ -39,6 +39,18 @@
             "UseDefaultValueIfEmpty": false
         },
         {
+            "type": "ts",
+            "OutputDir": "./test/global.d.ts",
+            "ExportTemple": "export namespace GConfig {\n\n{data}\n}",
+            "UseDefaultValueIfEmpty": false
+        },
+        {
+            "type": "ts",
+            "OutputDir": "./test/ts/",
+            "ExportTemple": "export {data}",
+            "UseDefaultValueIfEmpty": true
+        },
+        {
             "type": "csv",
             "OutputDir": "./test/csv/",
             "UseDefaultValueIfEmpty": false

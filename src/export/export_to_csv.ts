@@ -44,6 +44,8 @@ function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow
 
 class CSVExport extends utils.IExportWrapper {
 	constructor(exportCfg: utils.ExportCfg) { super(exportCfg); }
+
+	public get DefaultExtName(): string { return '.csv'; }
 	public async ExportTo(dt: utils.SheetDataTable, cfg: utils.GlobalCfg): Promise<boolean> {
 		const outdir = this._exportCfg.OutputDir;
 		if (!this.CreateDir(outdir)) {

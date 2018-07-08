@@ -49,6 +49,7 @@ function DumpToString(data: any) {
 class JSExport extends utils.IExportWrapper {
 	constructor(exportCfg: utils.ExportCfg) { super(exportCfg); }
 
+	public get DefaultExtName(): string { return '.js'; }
 	public async ExportTo(dt: utils.SheetDataTable, cfg: utils.GlobalCfg): Promise<boolean> {
 		const outdir = this._exportCfg.OutputDir;
 		let jsObj = {};
