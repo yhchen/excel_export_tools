@@ -63,7 +63,7 @@ utctime|UTC time stamp
 type|desc
 ---|---
 `{<name>:<type>}`   | start with '{' and end with '}' with json format. `<type>` is one of "Base Type" or "Combination Type".
-`<type>[<N>|null]`  | `<type>` is one of "Base Type" or "Combination Type". `<N>` is empty(variable-length) or number.
+`<type>[<N> or null]`  | `<type>` is one of "Base Type" or "Combination Type". `<N>` is empty(variable-length) or number.
 `vector2`           | float\[2\]
 `vector3`           | float\[3\]
 `json`              | JSON.parse() is vaild
