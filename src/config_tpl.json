@@ -10,7 +10,7 @@
     ],
     "Export": [
         {
-            "<type> can be [csv|json|js|ts|lua].": null,
+            "<type> can be [csv|json|js|tsd|lua].": null,
             "type": "json",
             "OutputDir": "./test/global.json",
             "UseDefaultValueIfEmpty": false
@@ -39,15 +39,15 @@
             "UseDefaultValueIfEmpty": false
         },
         {
-            "type": "ts",
+            "type": "tsd",
             "OutputDir": "./test/global.d.ts",
-            "ExportTemple": "export namespace GConfig {\n\n{data}\n}",
+            "ExportTemple": "export namespace GConfig {\n\n{data}export type Cfg = {type}\n\n}",
             "UseDefaultValueIfEmpty": false
         },
         {
-            "type": "ts",
-            "OutputDir": "./test/ts/",
-            "ExportTemple": "export {data}",
+            "type": "tsd",
+            "OutputDir": "./test/tsd/",
+            "ExportTemple": "export {data}export {type}",
             "UseDefaultValueIfEmpty": true
         },
         {

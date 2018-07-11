@@ -25,7 +25,7 @@ type|desc
 csv|csv format
 json|Export as `json` format. If `Export.OutputDir` is a directory. Export as a separate file per sheet, otherwise export as one file.
 js|Export as `js` format. Set `Export.ExportTemple` for export template. The tools will replace `{name}` with sheet name, and replace `{data}` with sheet data. If `Export.OutputDir` is a directory. Export as a separate file per sheet, otherwise export as one file.
-ts|Support in future releases
+tsd|Export *.d.ts file for language `typescript` type check. Set `Export.ExportTemple` for export template. The tools will replace `{type}` with table type, and replace `{data}` with row type. If `Export.OutputDir` is a directory. Export as a separate file per sheet, otherwise export as one file.
 lua|Support in future releases
 
 

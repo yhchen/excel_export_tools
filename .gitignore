@@ -3,3 +3,9 @@
 /node_modules
 /test/csv
 /test/json
+/test/tsd
+/test/js
+/test/json-bytes.bytes
+/test/global.d.ts
+/test/global.js
+/test/global.json

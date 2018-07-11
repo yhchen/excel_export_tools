@@ -24,7 +24,7 @@ const TSTypeTranslateMap = new Map<ETypeNames, {s:string, opt:boolean}>([
 ]);
 
 ////////////////////////////////////////////////////////////////////////////////
-class TSExport extends utils.IExportWrapper {
+class TSDExport extends utils.IExportWrapper {
 	constructor(exportCfg: utils.ExportCfg) {
 		super(exportCfg);
 	}
@@ -51,7 +51,12 @@ class TSExport extends utils.IExportWrapper {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{data}")}!`);
 			return false;
 		}
-		let interfaceContent = FMT.replace('{data}', this.GenSheetType(dt.name, dt.headerLst));
+		if (FMT.indexOf('{type}') < 0) {
+			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{type}")}!`);
+			return false;
+		}
+		let ctx = this.GenSheetType(dt.name, dt.headerLst);
+		let interfaceContent = FMT.replace('{data}', ctx.type).replace('{type}', ctx.tbtype);
 		const outfile = outdir + dt.name + this._exportCfg.ExtName;
 		await fs.writeFileAsync(outfile, interfaceContent, {encoding:'utf8', flag:'w'});
 		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
@@ -75,25 +80,37 @@ class TSExport extends utils.IExportWrapper {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{data}")}!`);
 			return;
 		}
-
-		let interfaceContent = '';
-		for (let iter of utils.ExportExcelDataMap) {
-			interfaceContent += this.GenSheetType(iter[1].name, iter[1].headerLst) + '\n\n';
+		if (FMT.indexOf('{type}') < 0) {
+			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{type}")}!`);
+			return;
 		}
-		interfaceContent = FMT.replace('{data}', interfaceContent);
-		fs.writeFileSync(outdir, interfaceContent, {encoding:'utf8', flag:'w'});
+
+		let data = '';
+		let type = '{\n';
+		const exportexp = FMT.indexOf('export') >= 0 ?'export ':'';
+		for (let iter of utils.ExportExcelDataMap) {
+			const name = iter[1].name;
+			let ctx = this.GenSheetType(name, iter[1].headerLst);
+			data += `${exportexp}${ctx.type}${exportexp}${ctx.tbtype}\n\n`;
+			type += `\t${name}:T${name};\n`;
+		}
+		type += `}\n`;
+		FMT.indexOf('{data}');
+		data = FMT.replace('{data}', data).replace('{type}', type);
+		fs.writeFileSync(outdir, data, {encoding:'utf8', flag:'w'});
 		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
 						+  `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 	}
 
-	private GenSheetType(sheetName: string, headerLst: utils.SheetHeader[]): string {
-		let tname = `interface ${sheetName} {\n`;
+	private GenSheetType(sheetName: string, headerLst: utils.SheetHeader[]): {type:string, tbtype:string} {
+		let type = `type ${sheetName} = {\n`;
 		for (let header of headerLst) {
 			if (header.comment) continue;
-			tname += `\t${header.name}${this.GenTypeName(header.typeChecker.type, false)};\n`;
+			type += `\t${header.name}${this.GenTypeName(header.typeChecker.type, false)};\n`;
 		}
-		tname += '}\n';
-		return tname;
+		type += '}\n';
+		let tbtype = `type T${sheetName} = {[Key in number|string]?: ${sheetName}};\n`
+		return {type, tbtype};
 	}
 
 	private GenTypeName(type: CType|undefined, opt: boolean = false): string {
@@ -146,4 +163,4 @@ class TSExport extends utils.IExportWrapper {
 
 }
 
-module.exports = function(exportCfg: utils.ExportCfg):utils.IExportWrapper { return new TSExport(exportCfg); };
+module.exports = function(exportCfg: utils.ExportCfg):utils.IExportWrapper { return new TSDExport(exportCfg); };
