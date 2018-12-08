@@ -44,6 +44,7 @@
  */
 import { isArray, isObject, isNumber, isString } from 'util';
 import * as moment from 'moment';
+import { ENGINE_METHOD_PKEY_ASN1_METHS } from 'constants';
 
 function NullStr(s: string) {
 	if (isString(s)) {
@@ -187,13 +188,14 @@ export class CTypeChecker
 			this._type = {type:EType.base, typename:ETypeNames.string, is_number:false};
 			return;
 		}
-		let tt = this._InitType({s, i:0});
+		let tt = this._InitType({s, idx:0});
 		if (tt == undefined) throw `gen type check error: no data`;
 		this._type = tt;
 	}
 
 	public get s(): string { return this.__s; }
 	public get type(): CType { return this._type; }
+	public get isObjectOrArray(): boolean { return this._type.type == EType.object || this._type.type == EType.array; }
 	public get DefaultValue(): any {
 		let r = TypeDefaultValue.get(this._type.typename);
 		return (r !== undefined) ? r.v : undefined;
@@ -321,61 +323,61 @@ export class CTypeChecker
 		return true;
 	}
 
-	private _InitType(p:{s:string, i:number}): CType|undefined {
+	private _InitType(p:{s:string, idx:number}): CType|undefined {
 		let thisNode:CType|undefined = undefined;
 		// skip write space
-		if (p.i >= p.s.length) undefined;
+		if (p.idx >= p.s.length) undefined;
 		let result:CType;
-		if (p.s[p.i] == '{') {
+		if (p.s[p.idx] == '{') {
 			thisNode = {type:EType.object, is_number:false};
-			++p.i;
+			++p.idx;
 			while (true)
 			{
 				// find name:
-				const namescope = FindWord(p.s, p.i);
+				const namescope = FindWord(p.s, p.idx);
 				if (!namescope) throw `gen type check error: object name not found!`;
 				const name = p.s.substr(namescope.start, namescope.len);
-				p.i = namescope.end + 1;
-				if (p.s[p.i++] != ':') throw `gen type check error: object name key not join with ':'`;
+				p.idx = namescope.end + 1;
+				if (p.s[p.idx++] != ':') throw `gen type check error: object name key not join with ':'`;
 				let tt = this._InitType(p);
 				if (!tt) throw `gen type check error: object name ${name} not found value!`;
-				if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
+				if (p.idx >= p.s.length)	throw `gen type check error: '}' not found!`;
 				if (!thisNode.obj) thisNode.obj = {};
 				thisNode.obj[name] = tt;
-				if (p.s[p.i] == ',') {
-					++p.i;
-					if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
+				if (p.s[p.idx] == ',') {
+					++p.idx;
+					if (p.idx >= p.s.length)	throw `gen type check error: '}' not found!`;
 				}
-				if (p.s[p.i] == '}') {
-					++p.i;
+				if (p.s[p.idx] == '}') {
+					++p.idx;
 					break;
 				}
-				if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
+				if (p.idx >= p.s.length)	throw `gen type check error: '}' not found!`;
 			}
-		} else if (p.s[p.i] == '[') {
-			++p.i;
+		} else if (p.s[p.idx] == '[') {
+			++p.idx;
 			let num:number|undefined = undefined;
-			if (p.i >= p.s.length)	throw `gen type check error: '}' not found!`;
-			if (p.s[p.i] != ']') {
-				let numscope = FindNum(p.s, p.i);
+			if (p.idx >= p.s.length)	throw `gen type check error: '}' not found!`;
+			if (p.s[p.idx] != ']') {
+				let numscope = FindNum(p.s, p.idx);
 				if (numscope == undefined) throw `gen type check error: array [<NUM>] format error!`;
-				p.i = numscope.end+1;
+				p.idx = numscope.end+1;
 				num = parseInt(p.s.substr(numscope.start, numscope.len));
 			}
-			if (p.i >= p.s.length)	throw `gen type check error: ']' not found!`;
-			if (p.s[p.i] != ']') {
+			if (p.idx >= p.s.length)	throw `gen type check error: ']' not found!`;
+			if (p.s[p.idx] != ']') {
 				throw `gen type check error: array [<NUM>] ']' not found!`;
 			}
-			++p.i;
+			++p.idx;
 			let arrNode:CType = {type:EType.array, num, is_number:false};
-			if (p.i < p.s.length && p.s[p.i] == '[') {
+			if (p.idx < p.s.length && p.s[p.idx] == '[') {
 				let nextArrNode = this._InitType(p);
 				if (!nextArrNode) throw `gen type check error: multi array error!`;
 				arrNode.next = nextArrNode;
 			}
 			return arrNode;
 		} else {
-			const typescope = FindWord(p.s, p.i);
+			const typescope = FindWord(p.s, p.idx);
 			if (!typescope) {
 				throw `gen type check error: base type not found!`;
 			}
@@ -389,10 +391,10 @@ export class CTypeChecker
 			} else {
 				thisNode = {type: BaseDateTypeSet.has(typename)?EType.date:EType.base, typename:<ETypeNames>typename, is_number:BaseNumberTypeSet.has(typename)};
 			}
-			p.i = typescope.end+1;
+			p.idx = typescope.end+1;
 		}
 
-		if (p.s[p.i] == '[') {
+		if (p.s[p.idx] == '[') {
 			let tt = this._InitType(p);
 			if (tt == undefined) throw `gen type check error: [] type error`;
 			const typeNode = thisNode;

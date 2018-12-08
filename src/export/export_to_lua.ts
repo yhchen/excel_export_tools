@@ -1,6 +1,7 @@
 import * as utils from "../utils";
 import * as fs from "fs-extra-promise";
 import * as path from 'path';
+import { EType } from "../TypeChecker";
 const json2lua = require('json2lua')
 
 function ParseJsonObject(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, rootNode: any, cfg: utils.GlobalCfg, exportCfg: utils.ExportCfg) {
@@ -8,12 +9,20 @@ function ParseJsonObject(header: Array<utils.SheetHeader>, sheetRow: utils.Sheet
 	let item: any = {};
 	let ids = new Array<any>();
 	for (let i = 0; i < header.length && i < sheetRow.values.length; ++i) {
-		if (!header[i] || header[i].comment) continue;
-		if (sheetRow.values[i] != null) {
-			item[header[i].name] = sheetRow.values[i];
+		let hdr = header[i];
+		if (!hdr || hdr.comment) continue;
+		let val = sheetRow.values[i];
+		if (val != null) {
+			// FIXME : 特殊处理，json被用做Base类型(string)处理了，所以此处需要做一次特殊处理
+			// 后续可能升级json类型的处理方法
+			if (hdr.typeChecker.type.typename == "json") {
+				item[hdr.name] = JSON.parse(val);
+			} else {
+				item[hdr.name] = val;
+			}
 		} else if (exportCfg.UseDefaultValueIfEmpty) {
-			if (header[i].typeChecker.DefaultValue != undefined) {
-				item[header[i].name] = header[i].typeChecker.DefaultValue;
+			if (hdr.typeChecker.DefaultValue != undefined) {
+				item[hdr.name] = hdr.typeChecker.DefaultValue;
 			}
 		}
 		if (i == 0) {
