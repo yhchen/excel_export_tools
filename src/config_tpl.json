@@ -12,58 +12,58 @@
         {
             "<type> can be [csv|json|js|tsd|lua].": null,
             "type": "json",
-            "OutputDir": "./test/global.json",
+            "OutputDir": "./test/exports/global.json",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "json",
-            "OutputDir": "./test/json/",
+            "OutputDir": "./test/exports/json/",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "json",
-            "OutputDir": "./test/json-bytes.bytes",
+            "OutputDir": "./test/exports/json-bytes.bytes",
             "ExtName": ".bytes",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "js",
-            "OutputDir": "./test/js/",
+            "OutputDir": "./test/exports/js/",
             "ExportTemple": "export const {name}={data}",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "js",
-            "OutputDir": "./test/global.js",
+            "OutputDir": "./test/exports/global.js",
             "ExportTemple": "export const GConfig = {data}",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "tsd",
-            "OutputDir": "./test/global.d.ts",
+            "OutputDir": "./test/exports/global.d.ts",
             "ExportTemple": "export namespace GConfig {\n\n{data}export type Cfg = {type}\n\n}",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "tsd",
-            "OutputDir": "./test/tsd/",
+            "OutputDir": "./test/exports/tsd/",
             "ExportTemple": "export {data}export {type}",
             "UseDefaultValueIfEmpty": true
         },
         {
             "type": "csv",
-            "OutputDir": "./test/csv/",
+            "OutputDir": "./test/exports/csv/",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "lua",
-            "OutputDir": "./test/lua/",
+            "OutputDir": "./test/exports/lua/",
             "ExportTemple": "{name}={data}",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "lua",
-            "OutputDir": "./test/lua_global.lua",
+            "OutputDir": "./test/exports/global.lua",
             "ExportTemple": "GConfig = {data}",
             "UseDefaultValueIfEmpty": true
         }

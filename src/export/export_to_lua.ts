@@ -28,7 +28,7 @@ function ParseJsonObject(header: Array<utils.SheetHeader>, sheetRow: utils.Sheet
 class LuaExport extends utils.IExportWrapper {
 	constructor(exportCfg: utils.ExportCfg) { super(exportCfg); }
 
-	public get DefaultExtName(): string { return '.json'; }
+	public get DefaultExtName(): string { return '.lua'; }
 	public async ExportTo(dt: utils.SheetDataTable, cfg: utils.GlobalCfg): Promise<boolean> {
 		const outdir = this._exportCfg.OutputDir;
 		let jsonObj = {};
@@ -42,12 +42,25 @@ class LuaExport extends utils.IExportWrapper {
 				utils.exception(`create output path "${utils.yellow_ul(outdir)}" failure!`);
 				return false;
 			}
-			const luaoncontent = json2lua.toLua(jsonObj);
+
+			let FMT: string|undefined = this._exportCfg.ExportTemple;
+			if (FMT == undefined) {
+				utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not defined!`);
+				return false;
+			}
+			if (FMT.indexOf('{data}') < 0) {
+				utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{data}")}!`);
+				return false;
+			}
+			if (FMT.indexOf('{name}') < 0) {
+				utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{name}")}!`);
+				return false;
+			}
+			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", json2lua.fromObject(jsonObj));
 			const outfile = path.join(outdir, dt.name+this._exportCfg.ExtName);
-			await fs.writeFileAsync(outfile, luaoncontent, {encoding:'utf8', flag:'w+'});
+			await fs.writeFileAsync(outfile, jscontent, {encoding:'utf8', flag:'w+'});
 			utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
-							 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
-		}
+							 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);		}
 		return true;
 	}
 
@@ -58,8 +71,17 @@ class LuaExport extends utils.IExportWrapper {
 			utils.exception(`create output path "${utils.yellow_ul(path.dirname(outdir))}" failure!`);
 			return;
 		}
-		const jsoncontent = json2lua.toLua(this._globalObj);
-		fs.writeFileSync(outdir, jsoncontent, {encoding:'utf8', flag:'w+'});
+		let FMT: string|undefined = this._exportCfg.ExportTemple;
+		if (FMT == undefined) {
+			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not defined!`);
+			return;
+		}
+		if (FMT.indexOf('{data}') < 0) {
+			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{data}")}!`);
+			return;
+		}
+		const jscontent = FMT.replace("{data}", json2lua.fromObject(this._globalObj));
+		fs.writeFileSync(outdir, jscontent, {encoding:'utf8', flag:'w+'});
 		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
 						 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 	}
