@@ -54,6 +54,18 @@
             "type": "csv",
             "OutputDir": "./test/csv/",
             "UseDefaultValueIfEmpty": false
+        },
+        {
+            "type": "lua",
+            "OutputDir": "./test/lua/",
+            "ExportTemple": "{name}={data}",
+            "UseDefaultValueIfEmpty": false
+        },
+        {
+            "type": "lua",
+            "OutputDir": "./test/lua_global.lua",
+            "ExportTemple": "GConfig = {data}",
+            "UseDefaultValueIfEmpty": true
         }
     ],
     "CSVNameCellID": "B1",

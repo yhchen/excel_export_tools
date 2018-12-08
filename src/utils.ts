@@ -167,7 +167,7 @@ export const ExportWrapperMap = new Map<string, ExportWrapperFactory>([
 	['json', require('./export/export_to_json')],
 	['js', require('./export/export_to_js')],
 	['tsd', require('./export/export_to_tsd')],
-	// ['lua', require('./export/export_to_lua')],
+	['lua', require('./export/export_to_lua')],
 ]);
 
 
