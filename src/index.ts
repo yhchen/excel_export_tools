@@ -189,9 +189,9 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				firstCol = false;
 			}
 			const value = cell && cell.w ? cell.w : '';
-			if (cell) {
-				cell.w = utils.StringTranslate.ReplaceNewLineToLashN(cell.w||'');
-			}
+			// if (cell) {
+			// 	cell.w = utils.StringTranslate.ReplaceNewLineToLashN(cell.w||'');
+			// }
 			if (gCfg.EnableTypeCheck) {
 				if (!col.checker.CheckDataVaildate(cell)) {
 					col.checker.CheckDataVaildate(cell); // for debug used
