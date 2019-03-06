@@ -2,12 +2,14 @@ import * as utils from "../utils";
 import * as fs from "fs-extra-promise";
 import * as path from 'path';
 import { EType } from "../TypeChecker";
-const json2lua = require('json2lua')
+import * as json_to_lua from '../json_to_lua';
 
 function ParseJsonObject(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, rootNode: any, cfg: utils.GlobalCfg, exportCfg: utils.ExportCfg) {
 	if (sheetRow.type != utils.ESheetRowType.data) return;
 	let item: any = {};
-	let ids = new Array<any>();
+	if (rootNode["ids"] == undefined) {
+		rootNode["ids"] = new Array<any>();
+	}
 	for (let i = 0; i < header.length && i < sheetRow.values.length; ++i) {
 		let hdr = header[i];
 		if (!hdr || hdr.comment) continue;
@@ -26,11 +28,10 @@ function ParseJsonObject(header: Array<utils.SheetHeader>, sheetRow: utils.Sheet
 			}
 		}
 		if (i == 0) {
-			ids.push(item[header[0].name])
+			rootNode["ids"].push(item[header[0].name])
 		}
 	}
 	rootNode[sheetRow.values[0]] = item;
-	rootNode["ids"] = ids;
 }
 
 
@@ -65,7 +66,7 @@ class LuaExport extends utils.IExportWrapper {
 				utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{name}")}!`);
 				return false;
 			}
-			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", json2lua.fromObject(jsonObj));
+			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", json_to_lua.toLuaString(jsonObj, 2));
 			const outfile = path.join(outdir, dt.name+this._exportCfg.ExtName);
 			await fs.writeFileAsync(outfile, jscontent, {encoding:'utf8', flag:'w+'});
 			utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
@@ -89,7 +90,7 @@ class LuaExport extends utils.IExportWrapper {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{data}")}!`);
 			return;
 		}
-		const jscontent = FMT.replace("{data}", json2lua.fromObject(this._globalObj));
+		const jscontent = FMT.replace("{data}", json_to_lua.toLuaString(this._globalObj, 3));
 		fs.writeFileSync(outdir, jscontent, {encoding:'utf8', flag:'w+'});
 		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
 						 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);

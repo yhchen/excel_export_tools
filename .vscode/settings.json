@@ -12,7 +12,6 @@
         "**/CVS": true,
         "node_modules": true,
         "package-lock.json": true,
-        "package.json": true,
         "tsconfig.json": true
     },
     "search.exclude": {
