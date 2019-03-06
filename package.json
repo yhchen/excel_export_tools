@@ -1,6 +1,6 @@
 {
   "name": "excel_export_tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "excel export with type check using nodejs in super fast speed!",
   "main": "bin/index.js",
   "scripts": {
@@ -11,6 +11,7 @@
   "dependencies": {
     "chalk": "^2.4.1",
     "fs-extra-promise": "^1.0.1",
+    "json_to_lua": "^1.0.1",
     "moment": "^2.22.2",
     "xlsx": "^0.13.0"
   },

@@ -2,7 +2,7 @@ import * as utils from "../utils";
 import * as fs from "fs-extra-promise";
 import * as path from 'path';
 import { EType } from "../TypeChecker";
-import * as json_to_lua from '../json_to_lua';
+import * as json_to_lua from 'json_to_lua';
 
 function ParseJsonObject(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, rootNode: any, cfg: utils.GlobalCfg, exportCfg: utils.ExportCfg) {
 	if (sheetRow.type != utils.ESheetRowType.data) return;
