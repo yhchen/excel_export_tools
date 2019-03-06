@@ -189,9 +189,12 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 				firstCol = false;
 			}
 			const value = cell && cell.w ? cell.w : '';
+			if (cell) {
+				cell.w = utils.StringTranslate.ReplaceNewLineToLashN(cell.w||'');
+			}
 			if (gCfg.EnableTypeCheck) {
 				if (!col.checker.CheckDataVaildate(cell)) {
-					col.checker.CheckDataVaildate(cell);
+					col.checker.CheckDataVaildate(cell); // for debug used
 					utils.exception(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" `
 								  + `CSV Cell "${utils.yellow_ul(utils.FMT26.NumToS26(col.cIdx)+(rIdx).toString())}" `
 								  + `format not match "${utils.yellow_ul(value)}" with ${utils.yellow_ul(col.checker.s)}!`);
