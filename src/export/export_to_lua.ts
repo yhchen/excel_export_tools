@@ -66,7 +66,7 @@ class LuaExport extends utils.IExportWrapper {
 				utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{name}")}!`);
 				return false;
 			}
-			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", json_to_lua.toLuaString(jsonObj, 2));
+			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", json_to_lua.jsObjectToLuaPretty(jsonObj, 2));
 			const outfile = path.join(outdir, dt.name+this._exportCfg.ExtName);
 			await fs.writeFileAsync(outfile, jscontent, {encoding:'utf8', flag:'w+'});
 			utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
@@ -90,7 +90,7 @@ class LuaExport extends utils.IExportWrapper {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{data}")}!`);
 			return;
 		}
-		const jscontent = FMT.replace("{data}", json_to_lua.toLuaString(this._globalObj, 3));
+		const jscontent = FMT.replace("{data}", json_to_lua.jsObjectToLuaPretty(this._globalObj, 3));
 		fs.writeFileSync(outdir, jscontent, {encoding:'utf8', flag:'w+'});
 		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
 						 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
