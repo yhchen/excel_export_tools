@@ -9,20 +9,20 @@
   "author": "yhchen",
   "license": "MIT",
   "dependencies": {
-    "chalk": "^2.4.1",
+    "chalk": "^2.4.2",
     "fs-extra-promise": "^1.0.1",
-    "json_to_lua": "^1.0.7",
-    "moment": "^2.22.2",
-    "xlsx": "^0.13.0"
+    "json_to_lua": "^1.1.0",
+    "moment": "^2.24.0",
+    "xlsx": "^0.14.5"
   },
   "devDependencies": {
     "@types/chalk": "^2.2.0",
-    "@types/fs-extra-promise": "^1.0.6",
-    "@types/lodash": "^4.14.122",
+    "@types/fs-extra-promise": "^1.0.8",
+    "@types/lodash": "^4.14.136",
     "@types/moment": "^2.13.0",
-    "@types/node": "^10.3.4",
+    "@types/node": "^10.14.15",
     "@types/xlsx": "0.0.36",
-    "typescript": "^3.0.1"
+    "typescript": "^3.5.3"
   },
   "repository": {
     "type": "git",
