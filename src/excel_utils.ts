@@ -256,12 +256,12 @@ function HandleWorkSheet(fileName: string, sheetName: string, worksheet: xlsx.Wo
 	// find csv name
 	const TableCell: xlsx.CellObject = worksheet[gCfg.CSVNameCellID];
 	if (TableCell == undefined) {
-		utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" Sheet name not defined. Ignore it!`);
+		utils.logger(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" Sheet name not defined. Ignore it!`);
 		return;
 	}
 	const TableName = TableCell.w;
 	if (!utils.StrNotEmpty(TableName)) {
-		utils.logger(false, `excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" Sheet name not defined. Ignore it!`);
+		utils.logger(`excel file "${utils.yellow_ul(fileName)}" sheet "${utils.yellow_ul(sheetName)}" Sheet name not defined. Ignore it!`);
 		return;
 	}
 
