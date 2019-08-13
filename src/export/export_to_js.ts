@@ -3,8 +3,9 @@ import * as fs from "fs-extra-promise";
 import * as utils from "../utils";
 
 function ParseJSLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow,
-					 rootNode: any, cfg: utils.GlobalCfg, exportCfg: utils.ExportCfg): string|undefined {
-	if (sheetRow.type != utils.ESheetRowType.data) return undefined;
+	rootNode: any, exportCfg: utils.ExportCfg): string | undefined {
+	if (sheetRow.type != utils.ESheetRowType.data)
+		return undefined;
 	let item: any = {};
 	for (let i = 0; i < header.length && i < sheetRow.values.length; ++i) {
 		if (!header[i] || header[i].comment) continue;
@@ -28,14 +29,15 @@ function DumpToString(data: any) {
 		let s = '';
 		for (let i = 0; i < data.length; ++i) {
 			if (data[i] === undefined) continue;
-			s += (s.length===0?'':',') + DumpToString(data[i]);
+			s += (s.length === 0 ? '' : ',') + DumpToString(data[i]);
 		}
 		return `[${s}]`;
 	} else if (utils.isObject(data)) {
 		let s = '';
 		for (let name in data) {
-			if (data[name] === undefined) continue;
-			s += `${s.length===0?'':','}${name}:${DumpToString(data[name])}`;
+			const v = (<any>data)[name];
+			if (v === undefined) continue;
+			s += `${s.length === 0 ? '' : ','}${name}:${DumpToString(v)}`;
 		}
 		return `{${s}}`;
 	} else if (utils.isBoolean(data)) {
@@ -50,11 +52,16 @@ class JSExport extends utils.IExportWrapper {
 	constructor(exportCfg: utils.ExportCfg) { super(exportCfg); }
 
 	public get DefaultExtName(): string { return '.js'; }
-	public async ExportTo(dt: utils.SheetDataTable, cfg: utils.GlobalCfg): Promise<boolean> {
+	protected async ExportTo(dt: utils.SheetDataTable): Promise<boolean> {
 		const outdir = this._exportCfg.OutputDir;
 		let jsObj = {};
-		for (let row of dt.values) {
-			ParseJSLine(dt.headerLst, row, jsObj, cfg, this._exportCfg);
+		const arrExportHeader = utils.ExecGroupFilter(this._exportCfg.GroupFilter, dt.arrTypeHeader)
+		if (arrExportHeader.length <= 0) {
+			utils.debug(`Pass Sheet ${utils.yellow_ul(dt.name)} : No Column To Export.`);
+			return true;
+		}
+		for (let row of dt.arrValues) {
+			ParseJSLine(arrExportHeader, row, jsObj, this._exportCfg);
 		}
 		if (this.IsFile(outdir)) {
 			this._globalObj[dt.name] = jsObj;
@@ -64,7 +71,7 @@ class JSExport extends utils.IExportWrapper {
 				return false;
 			}
 
-			let FMT: string|undefined = this._exportCfg.ExportTemple;
+			let FMT: string | undefined = this._exportCfg.ExportTemple;
 			if (FMT == undefined) {
 				utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not defined!`);
 				return false;
@@ -77,38 +84,40 @@ class JSExport extends utils.IExportWrapper {
 				utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{name}")}!`);
 				return false;
 			}
-			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", DumpToString(jsObj)||"{}");
-			const outfile = path.join(outdir, dt.name+this._exportCfg.ExtName);
-			await fs.writeFileAsync(outfile, jscontent, {encoding:'utf8', flag:'w+'});
-			utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
-							 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
+			const jscontent = FMT.replace("{name}", dt.name).replace("{data}", DumpToString(jsObj) || "{}");
+			const outfile = path.join(outdir, dt.name + this._exportCfg.ExtName);
+			await fs.writeFileAsync(outfile, jscontent, { encoding: 'utf8', flag: 'w+' });
+			utils.debug(`${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
+				+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 		}
 		return true;
 	}
 
-	public ExportEnd(cfg: utils.GlobalCfg): void {
+	protected async ExportGlobal(): Promise<boolean> {
 		const outdir = this._exportCfg.OutputDir;
-		if (!this.IsFile(outdir)) return;
+		if (!this.IsFile(outdir))
+			return true;
 		if (!this.CreateDir(path.dirname(outdir))) {
 			utils.exception(`create output path "${utils.yellow_ul(path.dirname(outdir))}" failure!`);
-			return;
+			return false;
 		}
-		let FMT: string|undefined = this._exportCfg.ExportTemple;
+		let FMT: string | undefined = this._exportCfg.ExportTemple;
 		if (FMT == undefined) {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not defined!`);
-			return;
+			return false;
 		}
 		if (FMT.indexOf('{data}') < 0) {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{data}")}!`);
-			return;
+			return false;
 		}
 		const jscontent = FMT.replace("{data}", DumpToString(this._globalObj));
-		fs.writeFileSync(outdir, jscontent, {encoding:'utf8', flag:'w+'});
-		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
-						 + `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
+		await fs.writeFileAsync(outdir, jscontent, { encoding: 'utf8', flag: 'w+' });
+		utils.debug(`${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
+			+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
+		return true;
 	}
 
 	private _globalObj: any = {};
 }
 
-module.exports = function(exportCfg: utils.ExportCfg):utils.IExportWrapper { return new JSExport(exportCfg); };
+module.exports = function (exportCfg: utils.ExportCfg): utils.IExportWrapper { return new JSExport(exportCfg); };

@@ -1,7 +1,7 @@
 import * as fs from "fs-extra-promise";
 import * as path from "path";
 import * as utils from "../utils";
-import {ETypeNames,CType, EType} from "../TypeChecker";
+import { ETypeNames, CType, EType } from "../CTypeParser";
 
 const TSTypeTranslateMap = new Map<ETypeNames, {s:string, opt:boolean}>([
 	[ETypeNames.char,		{s:'number', opt:false}],
@@ -31,10 +31,10 @@ class TSDExport extends utils.IExportWrapper {
 
 	public get DefaultExtName(): string { return '.d.ts'; }
 
-	public async ExportTo(dt: utils.SheetDataTable, cfg: utils.GlobalCfg): Promise<boolean> {
+	protected async ExportTo(dt: utils.SheetDataTable): Promise<boolean> {
 		let outdir = this._exportCfg.OutputDir;
 
-		if(this.IsFile(outdir)) {
+		if (this.IsFile(outdir)) {
 			return true;
 		}
 
@@ -42,7 +42,7 @@ class TSDExport extends utils.IExportWrapper {
 			utils.exception(`create output path "${utils.yellow_ul(outdir)}" failure!`);
 			return false;
 		}
-		let FMT: string|undefined = this._exportCfg.ExportTemple;
+		let FMT: string | undefined = this._exportCfg.ExportTemple;
 		if (FMT == undefined) {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not defined!`);
 			return false;
@@ -55,65 +55,77 @@ class TSDExport extends utils.IExportWrapper {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{type}")}!`);
 			return false;
 		}
-		let ctx = this.GenSheetType(dt.name, dt.headerLst);
+		let ctx = this.GenSheetType(dt.name, dt.arrTypeHeader);
+		if (!ctx)
+			return true;
 		let interfaceContent = FMT.replace('{data}', ctx.type).replace('{type}', ctx.tbtype);
 		const outfile = outdir + dt.name + this._exportCfg.ExtName;
-		await fs.writeFileAsync(outfile, interfaceContent, {encoding:'utf8', flag:'w'});
-		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
-						+  `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
+		await fs.writeFileAsync(outfile, interfaceContent, { encoding: 'utf8', flag: 'w' });
+		utils.debug(`${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outfile)}". `
+			+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 		return true;
 	}
 
-	public ExportEnd(cfg: utils.GlobalCfg): void {
+	protected async ExportGlobal(): Promise<boolean> {
 		const outdir = this._exportCfg.OutputDir;
-		if (!this.IsFile(outdir)) return;
+		if (!this.IsFile(outdir))
+			return true;
 		if (!this.CreateDir(path.dirname(outdir))) {
 			utils.exception(`create output path "${utils.yellow_ul(path.dirname(outdir))}" failure!`);
-			return;
+			return false;
 		}
-		let FMT: string|undefined = this._exportCfg.ExportTemple;
+		let FMT: string | undefined = this._exportCfg.ExportTemple;
 		if (FMT == undefined) {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not defined!`);
-			return;
+			return false;
 		}
 		if (FMT.indexOf('{data}') < 0) {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{data}")}!`);
-			return;
+			return false;
 		}
 		if (FMT.indexOf('{type}') < 0) {
 			utils.exception(`[Config Error] ${utils.yellow_ul("Export.ExportTemple")} not found Keyword ${utils.yellow_ul("{type}")}!`);
-			return;
+			return false;
 		}
 
 		let data = '';
 		let type = '{\n';
-		const exportexp = FMT.indexOf('export') >= 0 ?'export ':'';
+		const exportexp = FMT.indexOf('export') >= 0 ? 'export ' : '';
 		for (let iter of utils.ExportExcelDataMap) {
 			const name = iter[1].name;
-			let ctx = this.GenSheetType(name, iter[1].headerLst);
-			data += `${exportexp}${ctx.type}${exportexp}${ctx.tbtype}\n\n`;
-			type += `\t${name}:T${name};\n`;
+			let ctx = this.GenSheetType(name, iter[1].arrTypeHeader);
+			if (ctx) {
+				data += `${exportexp}${ctx.type}${exportexp}${ctx.tbtype}\n\n`;
+				type += `\t${name}:T${name};\n`;
+			}
 		}
 		type += `}\n`;
 		FMT.indexOf('{data}');
 		data = FMT.replace('{data}', data).replace('{type}', type);
-		fs.writeFileSync(outdir, data, {encoding:'utf8', flag:'w'});
-		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
-						+  `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
+		await fs.writeFileAsync(outdir, data, { encoding: 'utf8', flag: 'w' });
+		utils.debug(`${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(outdir)}". `
+			+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
+		return true;
 	}
 
-	private GenSheetType(sheetName: string, headerLst: utils.SheetHeader[]): {type:string, tbtype:string} {
+	private GenSheetType(sheetName: string, arrHeader: utils.SheetHeader[]): { type: string, tbtype: string } | undefined {
+		const arrExportHeader = utils.ExecGroupFilter(this._exportCfg.GroupFilter, arrHeader)
+		if (arrExportHeader.length <= 0) {
+			utils.debug(`Pass Sheet ${utils.yellow_ul(sheetName)} : No Column To Export.`);
+			return;
+		}
+
 		let type = `type ${sheetName} = {\n`;
-		for (let header of headerLst) {
+		for (let header of arrExportHeader) {
 			if (header.comment) continue;
 			type += `\t${header.name}${this.GenTypeName(header.typeChecker.type, false)};\n`;
 		}
 		type += '}\n';
 		let tbtype = `type T${sheetName} = {[Key in number|string]?: ${sheetName}};\n`
-		return {type, tbtype};
+		return { type, tbtype };
 	}
 
-	private GenTypeName(type: CType|undefined, opt: boolean = false): string {
+	private GenTypeName(type: CType | undefined, opt: boolean = false): string {
 		const defaultval = `?: any`;
 		if (type == undefined) {
 			return defaultval;
@@ -121,11 +133,10 @@ class TSDExport extends utils.IExportWrapper {
 		switch (type.type) {
 			case EType.base:
 			case EType.date:
-				if (type.typename)
-				{
+				if (type.typename) {
 					let tdesc = TSTypeTranslateMap.get(type.typename);
 					if (tdesc) {
-						return `${opt||tdesc.opt||!this._exportCfg.UseDefaultValueIfEmpty?'?':''}: ${tdesc.s}`;
+						return `${opt || tdesc.opt || !this._exportCfg.UseDefaultValueIfEmpty ? '?' : ''}: ${tdesc.s}`;
 					}
 				} else {
 					return defaultval;
@@ -163,4 +174,4 @@ class TSDExport extends utils.IExportWrapper {
 
 }
 
-module.exports = function(exportCfg: utils.ExportCfg):utils.IExportWrapper { return new TSDExport(exportCfg); };
+module.exports = function (exportCfg: utils.ExportCfg): utils.IExportWrapper { return new TSDExport(exportCfg); };

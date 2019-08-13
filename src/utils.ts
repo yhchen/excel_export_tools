@@ -1,56 +1,70 @@
-export { isString, isNumber, isArray, isObject, isBoolean, isDate } from 'util';
-import { isString } from 'util';
 import * as fs from 'fs-extra';
-import * as path from 'path';
+export { isString, isNumber, isArray, isObject, isBoolean } from 'lodash';
+export { isDate } from 'moment';
+import { isString } from 'util';
+import { gCfg } from './config';
+import { CTypeParser } from './CTypeParser';
+import { CHightTypeChecker } from './CHighTypeChecker';
 
 ////////////////////////////////////////////////////////////////////////////////
-/*************** console color ***************/
-import * as chalk from 'chalk';
-import { CTypeChecker } from './TypeChecker';
-export const yellow_ul = chalk.default.yellow.underline;	//yellow under line
-export const yellow = chalk.default.yellow;
-export const red = chalk.default.redBright;
-export const green = chalk.default.greenBright;
-export const brightWhite = chalk.default.whiteBright.bold
+//#region console color
+import chalk from 'chalk';
+export const yellow_ul = chalk.yellow.underline;	//yellow under line
+export const orange_ul = chalk.magentaBright.underline.bold;	//orange under line
+export const yellow = chalk.yellow;
+export const red = chalk.redBright;
+export const green = chalk.greenBright;
+export const brightWhite = chalk.whiteBright.bold
+//#endregion
 
 ////////////////////////////////////////////////////////////////////////////////
-/************ logger function **************/
-export let EnableDebugOutput: boolean = true;
-export function SetEnableDebugOutput(b: boolean) { EnableDebugOutput = b; }
-export function logger(debugMode: boolean, ...args: any[]) {
-	if (!EnableDebugOutput && debugMode) {
-		return;
-	}
+//#region Logger
+export const enum E_ERROR_LEVEL {
+	EXECUTE_FAILURE = -1,
+	INIT_EXTENDS = -1001,
+}
+export function logger(...args: any[]) {
 	console.log(...args);
 }
-function trace(...args: any[]) { logger(true, ...args); }
-let ExceptionLog = '';
-export function exception(txt: string, ex?:any): never {
-	ExceptionLog += `${red(`+ [ERROR] `)} ${txt}\n`
-	logger(false, red(`[ERROR] `) + txt);
-	if (ex) { logger(false, red(ex)); }
+export function debug(...args: any[]) {
+	if (!gCfg.EnableDebugOutput)
+		return;
+	logger(...args);
+}
+export function warn(txt: string): void {
+	logger(`${orange_ul(`+ [WARN] `)} ${txt}\n`);
+}
+let ExceptionLogLst = new Array<string>();
+export function exception(txt: string, ex?: any): never {
+	exceptionRecord(txt, ex);
 	throw txt;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-/************* base function ***************/
-export function NullStr(s: string) {
-	if (isString(s)) {
-		return s.trim().length <= 0;
-	}
-	return true;
+// record exception not throw.
+export function exceptionRecord(txt: string, ex?: any): void {
+	const LOG_CTX = `${red(`+ [ERROR] `)} ${txt}\n${red(ex ? ex : '')}\n`;
+	ExceptionLogLst.push(LOG_CTX);
+	logger(LOG_CTX);
 }
-
+//#endregion
 
 ////////////////////////////////////////////////////////////////////////////////
+//#region base function
+export function StrNotEmpty(s: any): s is string {
+	if (isString(s)) {
+		return s.trim().length > 0;
+	}
+	return false;
+}
+//#endregion
+
+////////////////////////////////////////////////////////////////////////////////
+//#region Time Profile
 /************* total use tick ****************/
-// timer calc
-let BeforeExistHandler: ()=>void;
-export function SetBeforeExistHandler(handler: ()=>void) {
+let BeforeExistHandler: () => void;
+export function SetBeforeExistHandler(handler: () => void) {
 	BeforeExistHandler = handler;
 }
-export module TimeUsed
-{
+export module TimeUsed {
 	export function LastElapse(): string {
 		const Now = Date.now();
 		const elpase = Now - _LastAccess;
@@ -65,77 +79,141 @@ export module TimeUsed
 	const _StartTime = Date.now();
 	let _LastAccess = _StartTime;
 
-	process.addListener('beforeExit', ()=>{
-		if (BeforeExistHandler) {
+	process.addListener('beforeExit', () => {
+		process.removeAllListeners('beforeExit');
+		const HasException = ExceptionLogLst.length > 0;
+		if (BeforeExistHandler && !HasException) {
 			BeforeExistHandler();
 		}
-		process.removeAllListeners('beforeExit');
-		const color = NullStr(ExceptionLog) ? green : yellow;
-		logger(false, color("----------------------------------------"));
-		logger(false, color("-            DONE WITH ALL             -"));
-		logger(false, color("----------------------------------------"));
-		logger(false, `Total Use Tick : "${yellow_ul(TotalElapse())}"`);
+		const color = HasException ? red : green;
+		logger(color(`----------------------------------------`));
+		logger(color(`-          ${HasException ? 'Got Exception !!!' : '    Well Done    '}           -`));
+		logger(color(`----------------------------------------`));
+		logger(`Total Use Tick : "${yellow_ul(TotalElapse())}"`);
 
-		if (!NullStr(ExceptionLog)) {
-			logger(false, red("Exception Logs:"));
-			logger(false, ExceptionLog);
+		if (HasException) {
+			logger(red("Exception Logs:"));
+			logger(ExceptionLogLst.join('\n'));
 			process.exit(-1);
 		} else {
 			process.exit(0);
 		}
 	});
 }
+//#endregion
 
 ////////////////////////////////////////////////////////////////////////////////
-// Datas ...
+//#region async Worker Monitor
+export class AsyncWorkMonitor {
+	public addWork(cnt: number = 1) {
+		this._leftCnt += cnt;
+	}
+	public decWork(cnt: number = 1) {
+		this._leftCnt -= cnt;
+	}
+	public async WaitAllWorkDone(): Promise<boolean> {
+		if (this._leftCnt <= 0)
+			return true;
+		while (true) {
+			if (this._leftCnt <= 0) {
+				return true;
+			}
+			await this.delay()
+		}
+	}
+	public async delay(ms: number = 0) {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+	private _leftCnt = 0;
+}
+//#endregion
+
+////////////////////////////////////////////////////////////////////////////////
+//#region Datas
 // excel gen data table
 export enum ESheetRowType {
-	header = 1,
-	type = 2,
-	data = 3,
-	comment = 4,
+	header = 1, // name row
+	type = 2, // type
+	data = 3, // data
+	comment = 4, // comment
 }
 export type SheetRow = {
 	type: ESheetRowType,
 	values: Array<any>,
+	cIdx: number;
 }
 export type SheetHeader = {
 	name: string, // name
 	stype: string, // type string
-	typeChecker: CTypeChecker, // type checker
+	cIdx: number, // header idx
+	typeChecker: CTypeParser, // type checker
 	comment: boolean; // is comment line?
+	color: string; // group
+	highCheck?: CHightTypeChecker;
 }
 export class SheetDataTable {
-	constructor(name: string) {
+	public constructor(name: string, filename: string) {
 		this.name = name;
-		this.headerLst = new Array();
-		this.values = new Array();
+		this.filename = filename;
+	}
+	// check sheet column contains key
+	public checkColumnContainsValue(columnName: string, value: any): boolean {
+		if (!this.columnKeysMap.has(columnName)) {
+			if (!this.makeColumnKeyMap(columnName)) {
+				exception(`CALL [checkColumnContainsValue] failure: sheet column name ${yellow_ul(this.name + '.' + columnName)}`);
+				return false;
+			}
+		}
+		let s = this.columnKeysMap.get(columnName);
+		return s != undefined && s.has(value);
+	}
+	public containsColumName(name: string): boolean {
+		for (const header of this.arrTypeHeader) {
+			if (header.name == name)
+				return true;
+		}
+		return false;
 	}
 	public name: string;
-	public headerLst: Array<SheetHeader>;
-	public values: Array<SheetRow>;
+	public filename: string;
+	public arrTypeHeader = new Array<SheetHeader>();
+	public arrValues = new Array<SheetRow>();
+
+	private makeColumnKeyMap(columnName: string): boolean {
+		for (let i = 0; i < this.arrTypeHeader.length; ++i) {
+			if (this.arrTypeHeader[i].name == columnName) {
+				const s = new Set<any>();
+				for (const row of this.arrValues) {
+					if (row.type != ESheetRowType.data) continue;
+					s.add(row.values[i]);
+				}
+				this.columnKeysMap.set(columnName, s);
+				return true;
+			}
+		}
+		return false;
+	}
+	private columnKeysMap = new Map<string, Set<any>>();
 }
 // all export data here
 export const ExportExcelDataMap = new Map<string, SheetDataTable>();
 
 // line breaker
 export let LineBreaker = '\n';
-export let LineBreakerWords = '\\n';
 export function SetLineBreaker(v: string) {
 	LineBreaker = v;
-	LineBreakerWords = StringTranslate.TranslateEscapeCharToNonEscapeChar(LineBreaker);
 }
 
+//#endregion
+
 ////////////////////////////////////////////////////////////////////////////////
-// export config
-export type GlobalCfg = {
-	EnableExportCommentColumns: boolean;
-	EnableExportCommentRows: boolean;
-}
+//#region export config
+
 export type ExportCfg = {
 	type: string;
 	OutputDir: string;
 	UseDefaultValueIfEmpty: boolean;
+	GroupFilter: Array<string>;
 	ExportTemple?: string;
 	ExtName?: string;
 }
@@ -145,8 +223,32 @@ export abstract class IExportWrapper {
 		this._exportCfg = exportCfg;
 	}
 	public abstract get DefaultExtName(): string;
-	public abstract async ExportTo(dt: SheetDataTable, cfg: GlobalCfg): Promise<boolean>;
-	public abstract ExportEnd(cfg: GlobalCfg): void;
+	public async ExportToAsync(dt: SheetDataTable, endCallBack: (ok: boolean) => void): Promise<boolean> {
+		let ok = false;
+		try {
+			ok = await this.ExportTo(dt);
+		} catch (ex) {
+			// do nothing...
+		}
+		if (endCallBack) {
+			endCallBack(ok);
+		}
+		return ok;
+	}
+	public async ExportToGlobalAsync(endCallBack: (ok: boolean) => void): Promise<boolean> {
+		let ok = false;
+		try {
+			ok = await this.ExportGlobal();
+		} catch (ex) {
+			// do nothing...
+		}
+		if (endCallBack) {
+			endCallBack(ok);
+		}
+		return ok;
+	}
+	protected abstract async ExportTo(dt: SheetDataTable): Promise<boolean>;
+	protected abstract async ExportGlobal(): Promise<boolean>;
 	protected CreateDir(outdir: string): boolean {
 		if (!fs.existsSync(outdir)) {
 			fs.ensureDirSync(outdir);
@@ -156,16 +258,51 @@ export abstract class IExportWrapper {
 	}
 
 	protected IsFile(s: string): boolean {
-		const ext = this._exportCfg.ExtName||this.DefaultExtName;
+		const ext = this._exportCfg.ExtName || this.DefaultExtName;
 		const idx = s.lastIndexOf(ext);
-		if (idx < 0) return false;
+		if (idx < 0)
+			return false;
 		return (idx + ext.length == s.length);
 	}
 
 	protected _exportCfg: ExportCfg;
 }
 
-export type ExportWrapperFactory = (cfg: ExportCfg)=>IExportWrapper;
+
+export function ExecGroupFilter(arrGrpFilters: Array<string>, arrHeader: Array<SheetHeader>): Array<SheetHeader> {
+	let result = new Array<SheetHeader>();
+	if (arrGrpFilters.length <= 0)
+		return result;
+	// translate
+	const RealFilter = new Array<string>();
+	for (const ele of arrGrpFilters) {
+		let found = false;
+		for (const name in gCfg.ColorToGroupMap) {
+			if ((<any>gCfg.ColorToGroupMap)[name] == ele) {
+				RealFilter.push(name);
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			logger(`Filter Name ${yellow_ul(ele)} Not foud In ${yellow_ul('ColorToGroupMap')}. Ignore It!`);
+		}
+	}
+	// filter
+	if (RealFilter.includes('*')) {
+		return arrHeader;
+	}
+	for (const header of arrHeader) {
+		if (RealFilter.includes(header.color)) {
+			result.push(header);
+		}
+	}
+
+	return result;
+}
+
+
+export type ExportWrapperFactory = (cfg: ExportCfg) => IExportWrapper;
 export const ExportWrapperMap = new Map<string, ExportWrapperFactory>([
 	['csv', require('./export/export_to_csv')],
 	['json', require('./export/export_to_json')],
@@ -174,13 +311,15 @@ export const ExportWrapperMap = new Map<string, ExportWrapperFactory>([
 	['lua', require('./export/export_to_lua')],
 ]);
 
+//#endregion
 
 ////////////////////////////////////////////////////////////////////////////////
+//#region Format Converter
 export module FMT26 {
-	export function NumToS26(num: number): string{
-		let result="";
+	export function NumToS26(num: number): string {
+		let result = "";
 		++num;
-		while (num > 0){
+		while (num > 0) {
 			let m = num % 26;
 			if (m == 0) m = 26;
 			result = String.fromCharCode(m + 64) + result;
@@ -192,72 +331,15 @@ export module FMT26 {
 	export function S26ToNum(str: string): number {
 		let result = 0;
 		let ss = str.toUpperCase();
-		for (let i = str.length - 1, j = 1; i >= 0; i--, j *= 26) {
+		for (let i = str.length - 1, j = 1; i >= 0; i-- , j *= 26) {
 			let c = ss[i];
-			if (c < 'A' || c > 'Z') return 0;
+			if (c < 'A' || c > 'Z')
+				return 0;
 			result += (c.charCodeAt(0) - 64) * j;
 		}
 		return --result;
 	}
 }
 
+//#endregion
 
-export module StringTranslate {
-	export function ReplaceNewLineToLashN(s: string): string {
-		let ret = '';
-		let startIdx = 0;
-		let curr = 0;
-		let hasReplacement = false;
-		while (true) {
-			curr = FindNextWordWithNoEscapeChar(s, '"', curr);
-			if (curr < 0) break;
-			const next = FindNextWordWithNoEscapeChar(s, '"', curr+1);
-			if (next < 0) break;
-			let locateNewLine = FindNextWordWithNoEscapeChar(s, '\n', curr+1, next - 1);
-			if (locateNewLine > 0) {
-				// need replace string
-				hasReplacement = true;
-				while (locateNewLine > 0) {
-					ret += s.substr(startIdx, locateNewLine - startIdx) + LineBreakerWords;
-					startIdx = locateNewLine + 1;
-					locateNewLine = FindNextWordWithNoEscapeChar(s, '\n', startIdx, next - 1);
-				}
-			}
-			curr = next+1;
-		}
-		if (hasReplacement) {
-			return ret + s.substr(startIdx, s.length - startIdx);
-		}
-		return s;
-	}
-
-	const EscapeList = ['\a','\b','\f','\n','\r','\t','\v','\\','\'','\"','\?'];
-	const NonEscapeList = ['\\a','\\b','\\f','\\n','\\r','\\t','\\v','\\\\','\\\'','\\"','\\?'];
-	const EscapeRegList = new Array<RegExp>();
-	for (let i = 0; i < EscapeList.length; ++i) {
-		EscapeRegList.push(new RegExp(NonEscapeList[i], 'g'));
-	}
-
-	export function TranslateEscapeCharToNonEscapeChar(s: string): string {
-		let ss = s;
-		for (let i = 0; i < EscapeRegList.length; ++i) {
-			ss = ss.replace(EscapeRegList[i], NonEscapeList[i]);
-		}
-		return ss;
-	}
-
-	// find next word not escapse character
-	function FindNextWordWithNoEscapeChar(str: string, w: string, startPos?: number, endPos?: number): number {
-		endPos = endPos ? Math.min(endPos, str.length) : str.length;
-		for (let i=startPos?startPos:0; i < endPos; ++i) {
-			if (str[i] == '\\') { // skip two words
-				++i;
-				continue;
-			}
-			if (str[i] == w) {
-				return i;
-			}
-		}
-		return -1;
-	}
-}

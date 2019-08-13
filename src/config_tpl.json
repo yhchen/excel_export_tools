@@ -2,68 +2,80 @@
     "IncludeFilesAndPath": [
         "./test/excel"
     ],
-    "ExcludeFileNames": [
-        "Exclude.xlsx"
-    ],
-    "ExcludeSheetNames": [
-        "<none>"
-    ],
+    "ColorToGroupMap": {
+        "FFFF00" : "YELLOW",
+        "FF0000" : "RED",
+        "00B050" : "GREEN",
+        "000000" : "WHITE",
+        "FFFFFF" : "BLACK",
+        "*" : "ALL"
+    },
     "Export": [
         {
             "<type> can be [csv|json|js|tsd|lua].": null,
             "type": "json",
             "OutputDir": "./test/exports/global.json",
+            "GroupFilter": ["ALL"],
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "json",
             "OutputDir": "./test/exports/json/",
+            "GroupFilter": ["YELLOW"],
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "json",
             "OutputDir": "./test/exports/json-bytes.bytes",
+            "GroupFilter": ["RED"],
             "ExtName": ".bytes",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "js",
             "OutputDir": "./test/exports/js/",
+            "GroupFilter": ["GREEN"],
             "ExportTemple": "export const {name}={data}",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "js",
             "OutputDir": "./test/exports/global.js",
+            "GroupFilter": ["WHITE"],
             "ExportTemple": "export const GConfig = {data}",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "tsd",
             "OutputDir": "./test/exports/global.d.ts",
+            "GroupFilter": ["GREEN", "YELLOW", "RED"],
             "ExportTemple": "export namespace GConfig {\n\n{data}export type Cfg = {type}\n\n}",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "tsd",
             "OutputDir": "./test/exports/tsd/",
+            "GroupFilter": ["ALL"],
             "ExportTemple": "export {data}export {type}",
             "UseDefaultValueIfEmpty": true
         },
         {
             "type": "csv",
             "OutputDir": "./test/exports/csv/",
+            "GroupFilter": ["ALL"],
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "lua",
             "OutputDir": "./test/exports/lua/",
+            "GroupFilter": ["ALL"],
             "ExportTemple": "{name}={data}",
             "UseDefaultValueIfEmpty": false
         },
         {
             "type": "lua",
             "OutputDir": "./test/exports/global.lua",
+            "GroupFilter": ["ALL"],
             "ExportTemple": "GConfig = {data}",
             "UseDefaultValueIfEmpty": true
         }
@@ -75,7 +87,5 @@
     "LineBreak": "\r\n",
     "FractionDigitsFMT": 6,
     "EnableTypeCheck": true,
-    "EnableDebugOutput": true,
-    "EnableExportCommentColumns": true,
-    "EnableExportCommentRows": true
+    "EnableDebugOutput": true
 }

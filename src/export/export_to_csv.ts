@@ -2,7 +2,7 @@ import * as utils from "../utils";
 import * as fs from "fs-extra-promise";
 import * as path from 'path';
 
-function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, cfg: utils.GlobalCfg, exportCfg: utils.ExportCfg): string {
+function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow, exportCfg: utils.ExportCfg): string {
 	let tmpArry = new Array<string>();
 	for (let i = 0; i < sheetRow.values.length; ++i) {
 		let value = sheetRow.values[i];
@@ -28,7 +28,7 @@ function ParseCSVLine(header: Array<utils.SheetHeader>, sheetRow: utils.SheetRow
 			} else if (utils.isBoolean(value)) {
 				tmpValue = value ? 'true' : 'false';
 			} else {
-				throw `export INNER ERROR`;
+				utils.exception(`export INNER ERROR`);
 			}
 			if (tmpValue.indexOf(',') < 0 && tmpValue.indexOf('"') < 0) {
 				tmpValue = tmpValue.replace(/"/g, `""`);
@@ -46,27 +46,31 @@ class CSVExport extends utils.IExportWrapper {
 	constructor(exportCfg: utils.ExportCfg) { super(exportCfg); }
 
 	public get DefaultExtName(): string { return '.csv'; }
-	public async ExportTo(dt: utils.SheetDataTable, cfg: utils.GlobalCfg): Promise<boolean> {
+	protected async ExportTo(dt: utils.SheetDataTable): Promise<boolean> {
 		const outdir = this._exportCfg.OutputDir;
 		if (!this.CreateDir(outdir)) {
 			utils.exception(`output path "${utils.yellow_ul(outdir)}" not exists!`);
 			return false;
 		}
-		let tmpArr = new Array<string>();
-		for (let row of dt.values) {
-			tmpArr.push(ParseCSVLine(dt.headerLst, row, cfg, this._exportCfg));
+		let arrTmp = new Array<string>();
+		const arrExportHeader = utils.ExecGroupFilter(this._exportCfg.GroupFilter, dt.arrTypeHeader)
+		if (arrExportHeader.length <= 0) {
+			utils.debug(`Pass Sheet ${utils.yellow_ul(dt.name)} : No Column To Export.`);
+			return true;
 		}
-		const csvcontent = tmpArr.join(utils.LineBreaker) + utils.LineBreaker;
-		await fs.writeFileAsync(path.join(outdir, dt.name+this._exportCfg.ExtName), csvcontent, {encoding:'utf8', flag:'w+'});
+		for (let row of dt.arrValues) {
+			if (row.type != utils.ESheetRowType.data && row.type != utils.ESheetRowType.header) continue;
+			arrTmp.push(ParseCSVLine(arrExportHeader, row, this._exportCfg));
+		}
+		const csvcontent = arrTmp.join(utils.LineBreaker) + utils.LineBreaker;
+		await fs.writeFileAsync(path.join(outdir, dt.name + this._exportCfg.ExtName), csvcontent, { encoding: 'utf8', flag: 'w+' });
 
-		utils.logger(true, `${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(path.join(outdir, dt.name+this._exportCfg.ExtName))}". `
-							+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
+		utils.debug(`${utils.green('[SUCCESS]')} Output file "${utils.yellow_ul(path.join(outdir, dt.name + this._exportCfg.ExtName))}". `
+			+ `Total use tick:${utils.green(utils.TimeUsed.LastElapse())}`);
 
 		return true;
 	}
-
-	public ExportEnd(cfg: utils.GlobalCfg): void {
-	}
+	protected async ExportGlobal(): Promise<boolean> { return true; }
 }
 
-module.exports = function(exportCfg: utils.ExportCfg):utils.IExportWrapper { return new CSVExport(exportCfg); };
+module.exports = function (exportCfg: utils.ExportCfg): utils.IExportWrapper { return new CSVExport(exportCfg); };

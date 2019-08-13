@@ -178,7 +178,7 @@ export interface CType
 	obj?: {[name:string]: CType};
 }
 
-export class CTypeChecker
+export class CTypeParser
 {
 	public constructor(typeString: string) {
 		this.__s = typeString;
@@ -213,7 +213,7 @@ export class CTypeChecker
 	public static set FractionDigitsFMT(v: number) { FractionDigitsFMT = v; console.log(`[TypeCheck] : Change Float precision to "${FractionDigitsFMT}"`); }
 	public static get FractionDigitsFMT(): number { return FractionDigitsFMT; }
 
-	public CheckDataVaildate(value: {w?:string, v?:string|number|boolean|Date}|undefined): boolean {
+	public CheckContentVaild(value: {w?:string, v?:string|number|boolean|Date}|undefined): boolean {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) {
 			return true;
 		}
@@ -240,7 +240,7 @@ export class CTypeChecker
 		return true;
 	}
 
-	public ParseDataByType(value: {w?:string, v?:string|number|boolean|Date}|undefined): any {
+	public ParseContent(value: {w?:string, v?:string|number|boolean|Date}|undefined): any {
 		if (value == undefined || value.w == undefined || NullStr(value.w)) return undefined;
 		switch (this._type.type) {
 			case EType.array:
@@ -249,7 +249,7 @@ export class CTypeChecker
 					if (!isArray(tmpObj)) throw `${value} is not a valid json type`;
 					if (this._type.next == undefined) throw `type array next is undefined`;
 					for (let i = 0; i < tmpObj.length; ++i) {
-						tmpObj[i] = CTypeChecker._ParseJsonTypeStr(tmpObj[i], this._type.next);
+						tmpObj[i] = CTypeParser._ParseJsonTypeStr(tmpObj[i], this._type.next);
 					}
 					return tmpObj;
 				}
@@ -260,20 +260,20 @@ export class CTypeChecker
 					if (!isObject(tmpObj)) throw `${value} is not a valid json type`;
 					if (this._type.obj == undefined) return tmpObj;
 					for (let key in tmpObj) {
-						tmpObj[key] = CTypeChecker._ParseJsonTypeStr(tmpObj[key], this._type.obj[key]);
+						tmpObj[key] = CTypeParser._ParseJsonTypeStr(tmpObj[key], this._type.obj[key]);
 					}
 					return tmpObj;
 				}
 				break;
 			case EType.base:
 				if (this._type.is_number) {
-					return CTypeChecker._FixNumberFmt(<any>value.v||value.w||'', this._type);
+					return CTypeParser._FixNumberFmt(<any>value.v||value.w||'', this._type);
 				} else if (this._type.typename == ETypeNames.bool) {
 					return BooleanKeyMap.get(value.w.toLowerCase());
 				}
 				break;
 			case EType.date:
-				return CTypeChecker._FixDateFmt(value.v, this._type);
+				return CTypeParser._FixDateFmt(value.v, this._type);
 		}
 		return value.w;
 	}
@@ -429,13 +429,13 @@ export class CTypeChecker
 				return value;
 			case EType.base:
 				if (type.is_number) {
-					return CTypeChecker._FixNumberFmt(value, type);
+					return CTypeParser._FixNumberFmt(value, type);
 				} else if (type.typename == ETypeNames.bool) {
 					return BooleanKeyMap.get(value.w.toLowerCase());
 				}
 				return value||'';
 			case EType.date:
-				return CTypeChecker._FixDateFmt(value, type);
+				return CTypeParser._FixDateFmt(value, type);
 		}
 		return value||'';
 	}
@@ -454,9 +454,9 @@ export class CTypeChecker
 			return num;
 		}
 		if (type.typename == ETypeNames.double || type.typename == ETypeNames.float) {
-			return CTypeChecker._FixNumberFmt(parseFloat(n), type);
+			return CTypeParser._FixNumberFmt(parseFloat(n), type);
 		}
-		return CTypeChecker._FixNumberFmt(parseInt(n), type);
+		return CTypeParser._FixNumberFmt(parseInt(n), type);
 	}
 
 	private static _FixDateFmt(date: any, type: CType): string|number {
@@ -474,7 +474,7 @@ export class CTypeChecker
 		} else if (isString(date)) {
 			const Date = moment.default(date, DateFmt);
 			if (!Date.isValid()) throw `[TypeChecker] Date Type "${date}" Invalid!`;
-			return CTypeChecker._FixDateFmt(Date.toDate(), type);
+			return CTypeParser._FixDateFmt(Date.toDate(), type);
 		}
 		return date||'';
 	}
@@ -484,15 +484,15 @@ export class CTypeChecker
 }
 
 export function TestTypeChecker() {
-	console.log(new CTypeChecker('int'));
-	console.log(new CTypeChecker('string'));
-	console.log(new CTypeChecker('int[]'));
-	console.log(new CTypeChecker('int[2]'));
-	console.log(new CTypeChecker('int[][2]'));
-	console.log(new CTypeChecker('int[][]'));
-	console.log(new CTypeChecker('{t:string}'));
-	console.log(new CTypeChecker('{t:string, t1:string}'));
-	console.log(new CTypeChecker('{t:string, t1:string}[]'));
-	console.log(new CTypeChecker('{t:string, t1:{ut1:string}}[]'));
-	console.log(new CTypeChecker('{t:string, t1:{ut1:string}[]}[]'));
+	console.log(new CTypeParser('int'));
+	console.log(new CTypeParser('string'));
+	console.log(new CTypeParser('int[]'));
+	console.log(new CTypeParser('int[2]'));
+	console.log(new CTypeParser('int[][2]'));
+	console.log(new CTypeParser('int[][]'));
+	console.log(new CTypeParser('{t:string}'));
+	console.log(new CTypeParser('{t:string, t1:string}'));
+	console.log(new CTypeParser('{t:string, t1:string}[]'));
+	console.log(new CTypeParser('{t:string, t1:{ut1:string}}[]'));
+	console.log(new CTypeParser('{t:string, t1:{ut1:string}[]}[]'));
 }
