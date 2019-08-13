@@ -11,8 +11,7 @@
         "**/.svn": true,
         "**/CVS": true,
         "node_modules": true,
-        "package-lock.json": true,
-        "tsconfig.json": true
+        "package-lock.json": true
     },
     "search.exclude": {
         "**/node_modules": true,

@@ -1,6 +1,6 @@
 {
   "name": "excel_export_tools",
-  "version": "1.0.1",
+  "version": "2.0.1",
   "description": "excel export with type check using nodejs in super fast speed!",
   "main": "bin/index.js",
   "scripts": {
